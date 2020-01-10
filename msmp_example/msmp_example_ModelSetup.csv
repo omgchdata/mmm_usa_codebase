@@ -1,0 +1,15 @@
+Parameter,Value
+ModelForm,lin_lin
+Panel,N
+Time,Week
+BeginDate,3/1/2015
+EndDate,3/27/2017
+numSubModel,4
+subModel1,Desire
+subModelDepVar,Familiarity
+subModel1Dir,US_offtrade_Desire
+subModel2Dir,US_offtrade_Familiarity
+SimStart,4/4/2016
+SimEnd,3/27/2017
+Mroi,0.1
+Submodel_Link,Desire
