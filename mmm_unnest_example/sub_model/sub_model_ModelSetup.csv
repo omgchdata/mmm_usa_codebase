@@ -1,0 +1,10 @@
+Parameter,Value
+ModelForm,lin_lin
+Panel,N
+Time,Week
+BeginDate,1/2/2017
+EndDate,12/23/2019
+numSubModel,1
+SimStart,12/31/2018
+SimEnd,12/23/2019
+Mroi,0.1
