@@ -1,3 +1,14 @@
+
+##########################
+# revision:
+# Julia Liu 2020-03-05 : added Transform_panel
+#                        for cross sectional/panel dataset
+# Julia Liu 2020-03-09 : added "MC" (mean centered) transformation type
+# Julia Liu 2020-03-18 : record the mean center parameters (scale&center) by add them to the mod_obj$data
+#                        mod_obj$data$scl
+#                        mod_obj$data$cen
+##########################
+
 library(compiler)
 library(RcppRoll)
 
@@ -147,6 +158,9 @@ Transform = function(obj, print=TRUE) {
         if (type[j] == "ADSTOCK"){
           data_vector_transform <- AdStockPD(data_vector, spec$Decay[i], spec$Period[i])
         }
+        if (type[j] == "ADSTOCKV2"){
+          data_vector_transform <- adstock(data_vector, spec$Decay[i])
+        }
         if (type[j] == "ADR"){
           data_vector_transform <- adr(data_vector, fit_curves, c(spec$Effective[i], spec$Recency[i], spec$Period[i], spec$Decay[i]))
         }
@@ -162,6 +176,11 @@ Transform = function(obj, print=TRUE) {
         if (type[j] == "MA") {
           data_vector_transform <- rollmean(data_vector, spec$Window[i], align="right", fill=NA)
           data_vector_transform[which(is.na(data_vector_transform))] <- data_vector[which(is.na(data_vector_transform))]
+        }
+        if (type[j] == "MC") {
+          data_vector_transform <- scale(data_vector)
+          scl <- attr(data_vector_transform, "scaled:scale")
+          cen <- attr(data_vector_transform, "scaled:center")
         }
         if (type[j] == "STEIN") {
           data_vector_transform <- shrinker(data_vector, bw=spec$Window[i], trim=spec$Trim[i])
@@ -179,9 +198,90 @@ Transform = function(obj, print=TRUE) {
         data_vector <- data_vector_transform
       }
       x[spec$Trans_Variable[i]] <- data_vector
+      if (type[j] == "MC") {
+        x$scl <- scl
+        x$cen <- cen
+      }
     }
     output <- x
   }
   obj$data <- output
   return(obj)
 }
+
+
+Transform_panel = function(obj, print=TRUE) {
+  
+  spec <- obj$spec
+  fit_curves <- obj$fit_curves
+  split_data <- base::split(obj$data, obj$data[[obj$CS]])
+  output <- list()
+  for (k in 1:length(split_data)) {
+    x <- split_data[[k]]
+    x <- x[order(x[[obj$Time]]), ]  
+    cat("\n\n", "transform cross section", x[[obj$CS]][1], "...\n")
+    for (i in 1:nrow(spec)) {
+      if(spec$Transform[i] == "Y") {
+        if(print) { cat("transform ", spec$Orig_Variable[i], "\n") }
+        type <- unlist(strsplit(spec$TransformType[i], "_"))
+        type <- toupper(type)
+        data_vector <- x[[spec$Orig_Variable[i]]]
+        for(j in 1:length(type)) {
+          data_vector_transform <- list()
+          if (type[j] == "ADSTOCK"){
+            data_vector_transform <- AdStockPD(data_vector, spec$Decay[i], spec$Period[i])
+          }
+          if (type[j] == "ADSTOCKV2"){
+            data_vector_transform <- adstock(data_vector, spec$Decay[i])
+          }
+          if (type[j] == "ADR"){
+            data_vector_transform <- adr(data_vector, fit_curves, c(spec$Effective[i], spec$Recency[i], spec$Period[i], spec$Decay[i]))
+          }
+          if (type[j] == "LAG") {
+            data_vector_transform <- lag(data_vector, spec$Lag[i], default = 0)
+          }
+          if (type[j] == "LOG") {
+            data_vector_transform <- log(data_vector*spec$Scale[i] + 1)
+          }
+          if (type[j] == "POLY") {
+            data_vector_transform <- myPoly(data_vector, spec$Alpha[i])
+          }
+          if (type[j] == "MA") {
+            data_vector_transform <- rollmean(data_vector, spec$Window[i], align="right", fill=NA)
+            data_vector_transform[which(is.na(data_vector_transform))] <- data_vector[which(is.na(data_vector_transform))]
+          }
+          if (type[j] == "MC") {
+            data_vector_transform <- scale(data_vector)
+            scl <- attr(data_vector_transform, "scaled:scale")
+            cen <- attr(data_vector_transform, "scaled:center")
+          }
+          if (type[j] == "STEIN") {
+            data_vector_transform <- shrinker(data_vector, bw=spec$Window[i], trim=spec$Trim[i])
+          }
+          if (type[j] == "CPT") {
+            data_vector_transform <-
+              cpt.meanvar(data_vector, minseglen = 6, penalty = "CROPS", pen.value = c(0, 100), method = "PELT")
+          }
+          if (type[j] == "POWER") {
+            data_vector_transform <- (data_vector)^spec$Power[i]
+          }
+          if (type[j] == "NONE") {
+            data_vector_transform <- data_vector
+          }
+          data_vector <- data_vector_transform
+        }
+        x[spec$Trans_Variable[i]] <- data_vector
+        if (type[j] == "MC") {
+          x$scl <- scl
+          x$cen <- cen
+        }
+      }
+      output[[k]] <- x
+    }
+    
+  }
+  output <- do.call("rbind", output)
+  obj$data <- output
+  return(obj)
+}
+

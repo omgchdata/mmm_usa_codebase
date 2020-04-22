@@ -24,7 +24,7 @@
 my_bayes_inter = function(formula, data, priors=NULL) {
 
 
-  big_number <- 10000           # for difuse priors
+  big_number <- 100000          # for difuse priors
 
   DepVar <- all.vars(formula)[1]
   IV <- all.vars(formula)[-1]

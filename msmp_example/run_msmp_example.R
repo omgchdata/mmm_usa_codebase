@@ -16,11 +16,11 @@ source(paste(code_dir, "Run_Model.R", sep = ""))
 source(paste(code_dir, "my_bayes_v2.R", sep = ""))
 source(paste(code_dir, "Check_Data.R", sep = ""))
 source(paste(code_dir, "Transform.R", sep = ""))
+source(paste(code_dir, "resid_var_cor.R", sep = ""))
 source(paste(code_dir, "Decomp.R", sep = ""))
+source(paste(code_dir, "decomp_chart_stackedarea.R", sep = ""))
 source(paste(code_dir, "MAPE.R", sep = ""))
 source(paste(code_dir, "responsecurve.R", sep = ""))
-#source(paste(code_dir, "waterfall.R", sep = ""))
-#source(paste(code_dir, "DueToChart.R", sep = ""))
 source(paste(code_dir, "unnestr2.0.R", sep = ""))
 source(paste(code_dir, "abc.R", sep = ""))
 source(paste(code_dir, "abc_onls.R", sep = ""))
@@ -30,7 +30,6 @@ source(paste(code_dir, "fitABC.R", sep = ""))
 # please edit these lines to define the path to the project folder.
 ProjectName <-  "msmp_example"            # the name of the subfolder that contains the model project
 OutDir <- "output"
-#RootDirectory <- "C:/Users/julia.liu/Documents/MyWork/Projects/Julia/"   # the parent folder that contains the subfolder ProjectName
 RootDirectory <- "C:/Users/julia.liu/OneDrive - Omnicom Media Group/Documents/MyWork/an_ms_modelplatform/"
 ProjectDirectory <- paste(RootDirectory, ProjectName, "/", sep="")   # this is the full path of the project
 
@@ -52,7 +51,6 @@ CoefficientsFile <- paste(output_folder,  "/", ProjectName, "_Coefficients.csv",
 ActualPredictedFile <- paste(output_folder, "/", ProjectName, "_ActPred.csv", sep="")
 DecompFile <- paste(output_folder,  "/", ProjectName, "_Decomp.csv", sep="")
 raw_transFile <-  paste(output_folder, "/", ProjectName, "_TransVariables.csv", sep="")
-WaterFile <- paste(output_folder,  "/", ProjectName, "_Waterfall.csv", sep="")
 spec_coef_vifFile <- paste(output_folder,  "/", ProjectName, "_spec_coef_vif.csv", sep="")
 RCFile <- paste(output_folder,"/", ProjectName, "_ResponseCurve.csv", sep="")
 kpi_spentFile <- paste(output_folder,"/", ProjectName, "_kpi_spent.csv", sep="")
@@ -115,18 +113,19 @@ write_csv(mod_obj$Model$result_all, spec_coef_vifFile)
 ######################
 
 mod_obj <- Decomp(obj = mod_obj, incl_spent = F)
+mod_obj$chart_stackedarea <- decomp_chart_stackedarea(mod_obj)
 write_csv(mod_obj$Decomposition, DecompFile)
 
 ####################
 # Simulation to get response curve
 ####################
-mod_obj <- responsecurve(obj = mod_obj, showPlot=FALSE )
-write_csv(mod_obj$ResponseCurve, RCFile)
+#mod_obj <- responsecurve(obj = mod_obj, showPlot=FALSE )
+#write_csv(mod_obj$ResponseCurve, RCFile)
 
 ##################
 # ABCs
 ##################
-mod_obj <- fitABC(mod_obj, showPlot=T)
+#mod_obj <- fitABC(mod_obj, showPlot=T)
 
 # let's save the model object to a RData file. This object will be loaded later at post-model calculation:
 # unnest, combine response curves and calculate abc.
