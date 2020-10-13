@@ -1,22 +1,10 @@
-#' Decomp
-#'
-#' @param obj: list: Model
-#' @param Reference: char: Reference point
-#'
-#' @return
-#' @export
-#'
-#' @description
-#'
-#' This function takes model objects and does decomposition based on model form.
-#' obj (list) : model object which is created by running Run_Model
-#' Reference (char) : reference point for log model. default to min.
-#'
-# Output : a object that contains all the decomp result
-#'
-#' @examples
-Decomp <- function(obj, incl_spent = FALSE) {
-
+################################################
+# update notes:
+# 2020-05-12 Julia Liu : added mod_obj$decomp_stackedarea_chart
+# 2020-05-20 Julia Liu : added another stacked area chart (mod_obj$decomp_stackedarea_chart_origvar), this time at the Orig Variable level,
+#                        instead of the AggregateVariable level. 
+#######################################################
+Decomp <- function(obj, incl_spent = FALSE, loop = FALSE) {
 
   x <- obj$data
   spec <- obj$spec
@@ -59,6 +47,33 @@ Decomp <- function(obj, incl_spent = FALSE) {
   }
   
   obj$Decomposition <- decomp
+  
+  if(!loop) {
+  d <- obj$Decomposition
+  if(!("time" %in% names(d))) {
+    d$time <- d[[obj$Time]]
+    d[[obj$Time]] <- NULL
+  }
+  d <- gather(d, key = "d_var", value = "decomp", -time)
+  
+  spec <- obj$spec
+  spec$d_var = paste("d", spec$Trans_Variable, sep="_")
+  d <- left_join(d, spec[, c("Orig_Variable", "AggregateVariable", "d_var")])
+  dd <- d %>% dplyr::group_by(AggregateVariable, time) %>% dplyr::summarise(decomp = sum(decomp))
+  dd$AggregateVariable <- tolower(dd$AggregateVariable)
+  # put the "base" last in the factor order.
+  dd$AggregateVariable <- factor(dd$AggregateVariable,levels=c(setdiff(unique(dd$AggregateVariable), "base"), "base"))
+  
+  p <- ggplot(dd[!is.na(dd$AggregateVariable),], aes(x=time, y=decomp, fill=AggregateVariable)) + 
+    geom_area()
+  
+  obj$decomp_chart_stackedarea <- p
+  
+  obj$decomp_chart_stackedarea_origvar <- 
+    ggplot(d[!is.na(d$Orig_Variable),], aes(x=time, y=decomp, fill=Orig_Variable)) + 
+    geom_area()
+  }
+  
   return(obj)
 }
 

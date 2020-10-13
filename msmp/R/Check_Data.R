@@ -1,23 +1,22 @@
 
-#' Check Data
-#'
-#' @param obj
-#'
-#' @return
-#' @export
-#'
-#' @description
-#'
-#' This funciton checks data issues:
-#' - missing value (zero out the missing value if any)
-#' - check the model spec file against the model dataset,
-#'   and see whether there are any missing variables.
-#' - sort data by DMA by time
-#' - check any time gap (future)
-#' It returns the system objects with all the issue fixed.
-#'
-#' @examples
-#'
+
+##################################
+# this function checks data issues:
+# - missing value (zero out the missing value if any)
+# - check the model spec file against the model dataset,
+#   and see whether there are any missing variables.
+# - sort data by DMA by time
+# - check any time gap (future)
+# It returns the system objects with all the issue fixed.
+# Update notes:
+# 2020-09-14 Julia Liu : checks if the Orig_Variable and Trans_Variable names are the same or not:
+#                        if Transform == Y: the Orig and Transformed name shouldn't be the same
+#                        if Transform == N: they should be the same
+#                        if the above doesn't satisfy, the R code stop and print out a message.
+##################################
+
+library(reshape2)
+library(ggplot2)
 Check_Data = function(obj) {
 
   x <- obj$data
@@ -40,7 +39,8 @@ Check_Data = function(obj) {
   # check missing variables
   DepVar <- Model_Spec$Orig_Variable[Model_Spec$Variable_Type == "Dependent"]
   IV <- Model_Spec$Orig_Variable[Model_Spec$Variable_Type != "Dependent"]
-
+  IV_t <- Model_Spec$Trans_Variable[Model_Spec$Variable_Type != "Dependent"]
+  
   if(length(DepVar) == 0) {
     stop("Please define/include dependent variable in _Variables.csv. ")
   } else if(length(DepVar) > 1) {
@@ -67,13 +67,21 @@ Check_Data = function(obj) {
   } else {
     print("The model dataset contains all the model variables. ")
   }
-
+  
+  # check if Orig!=Trans_Variable when Transform==Y.
+  ind <- which((Model_Spec$Orig_Variable != Model_Spec$Trans_Variable) != (toupper(Model_Spec$Transform) == "Y"))
+  if(length(ind) >0) {
+    stop("In the _Variables.csv file, this/these variable(s) ", paste(Model_Spec$Orig_Variable[ind], collapse = " , "), 
+         " need attention. Please make sure Trans_Variable has differrent names from Orig_Variable when Tranform==Y and different when Transform==N. \n")
+  }
+  
 # is there a time variable?
   if(!(obj$Time %in% names(x))) {
     stop("The time variable", obj$Time, "is not in the _ModelData.csv.")
   }
   
-
+ 
+  
   if(toupper(obj$Panel == "Y")) {
     if(!is.null(obj$CS)) {
       if(!(obj$CS %in% names(x))) {
@@ -85,5 +93,9 @@ Check_Data = function(obj) {
   }
   
   obj$data <- x
+  
+  data <- obj$data[, obj$spec$Orig_Variable[obj$spec$Include == 1]]
+  #obj$cor_heatmap <- heatmap_cor(sel_data)
+  
   return(obj)
 }

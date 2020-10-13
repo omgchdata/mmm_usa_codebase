@@ -3,10 +3,15 @@
 # revision:
 # Julia Liu 2020-03-05 : added Transform_panel
 #                        for cross sectional/panel dataset
-# Julia Liu 2020-03-09 : added "MC" (mean centered) transformation type
+# Julia Liu 2020-03-09 : added "MC" (mean centered) transformation type 
 # Julia Liu 2020-03-18 : record the mean center parameters (scale&center) by add them to the mod_obj$data
 #                        mod_obj$data$scl
 #                        mod_obj$data$cen
+# Julia Liu 2020-03-26 : added "adstockv2" transformation
+# Julia Liu 2020-04-27 : added "adstock_v3" transformation. This transformation has 3 parameters
+#                        decay 
+#                        peak
+#                        length
 ##########################
 
 library(compiler)
@@ -61,6 +66,9 @@ AdStock <- function(afGRPs, fdecayRate) {
   # fdecayRate = decimal version of decay rate
 
   afAdStockedGRPs <- Reduce(function(v,x) v *(1-fdecayRate) + x, x = afGRPs, accumulate = TRUE)
+  if(sum(afAdStockedGRPs) != 0) {
+    afAdStockedGRPs <- afAdStockedGRPs * sum(afGRPs)/sum(afAdStockedGRPs)   # scale it so the sum of the total stays the same
+  }
   #afAdStockedGRPsMat <- as.matrix(t(afAdStockedGRPsMat))
   # Return AdStocked GRPs Vector
   return(afAdStockedGRPs)
@@ -68,6 +76,63 @@ AdStock <- function(afGRPs, fdecayRate) {
   # Example use of AdStock Function test=AdStock(data.matric(GRPs[3]),0.15)
 }
 adstock = cmpfun(AdStock)
+
+adstockv3 <- function(afGRPs, fdecayRate, peak=1, length=600) {
+
+  # sanity check
+  if(fdecayRate <0 | fdecayRate> 1) {
+    cat("the specified decay rate is", fdecayRate, "\n")
+    stop("please specify decay a number between [0,1]")
+  }
+  if(peak < 1 | peak >= length(afGRPs)) {
+    cat("the specified length is", length, "\n")
+    stop("please specify peak a number >= to 1. 1 meaning the peak strength is at the current week. ")
+  }
+  if(length <= peak) {
+    stop("please specify length to be greater than peak")
+  }
+  
+  # do this element by element
+  afAdStockedGRPs <- 0
+  for (i in 1:length(afGRPs)) {
+    value <- afGRPs[i] # record the original value
+    if(value>0 ) {
+      tmp1 <- afGRPs
+      tmp2 <- afGRPs
+      tmp2[i] <- 0
+      tmp = tmp1-tmp2
+
+      tmp3 <- lag(tmp, (peak-1), default=0)
+    
+      res <- Reduce(function(v,x) v *(1-fdecayRate) + x, x = tmp3, accumulate = TRUE)
+    
+      if(peak > 1) {
+        k=i-1
+        for (j in 1:(peak-1)) {
+          if( (k+j) <= length(afGRPs)) { # making sure it won't pass the max length of the variable
+            res[k+j] <- j/peak*value
+          }
+        }
+      }
+      if(length(res) >= (i+length)) {
+        res[(i+length) : length(res)] <- 0   # zero out all the carry-over afer the i+length
+      }
+      if(sum(res) !=0 ) {
+        res <- res * sum(tmp)/sum(res)
+      }
+      afAdStockedGRPs <- afAdStockedGRPs + res
+    }
+  }  
+  afAdStockedGRPs2 <- Reduce(function(v,x) v *(1-fdecayRate) + x, x = afGRPs, accumulate = TRUE)
+  # normalize it 
+  if(sum(afAdStockedGRPs2) != 0) {
+    afAdStockedGRPs2 <- afAdStockedGRPs2 * sum(afGRPs)/sum(afAdStockedGRPs2)   # scale it so the sum of the total stays the same
+  }
+  return(afAdStockedGRPs)
+}
+
+adstock = cmpfun(AdStock)
+
 AdResponse <- function(afGRPsMat, afCoeffsMat, params){
   # Generate the Effective Cover of a vector of input GRPs
 
@@ -142,6 +207,14 @@ AdStockPD <- function(data, i, p){
 # rowSums(as.data.frame(embed(c(rep(NA, p), data), p + 1) %*% ((1 - i) ^ seq(0,p,1))),na.rm = F)
 #obj = mod_obj
 
+#####################
+# ABC function
+#####################
+abc <- function(x, a, b, c) {
+  d <- a/(1+b*x^c)
+  return(d)
+}
+
 Transform = function(obj, print=TRUE) {
   x <- obj$data
   spec <- obj$spec
@@ -161,8 +234,14 @@ Transform = function(obj, print=TRUE) {
         if (type[j] == "ADSTOCKV2"){
           data_vector_transform <- adstock(data_vector, spec$Decay[i])
         }
+        if (type[j] == "ADSTOCKV3"){
+          data_vector_transform <- adstockv3(data_vector, spec$Decay[i], spec$Peak[i], spec$Length[i])
+        }
         if (type[j] == "ADR"){
           data_vector_transform <- adr(data_vector, fit_curves, c(spec$Effective[i], spec$Recency[i], spec$Period[i], spec$Decay[i]))
+        }
+        if (type[j] == "ABC"){
+          data_vector_transform <- abc(data_vector, spec$A[i], spec$B[i], spec$C[i])
         }
         if (type[j] == "LAG") {
           data_vector_transform <- lag(data_vector, spec$Lag[i], default = 0)
@@ -233,6 +312,9 @@ Transform_panel = function(obj, print=TRUE) {
           }
           if (type[j] == "ADSTOCKV2"){
             data_vector_transform <- adstock(data_vector, spec$Decay[i])
+          }
+          if (type[j] == "ADSTOCKV3"){
+            data_vector_transform <- adstockv3(data_vector, spec$Decay[i], spec$Peak[i], spec$Length[i])
           }
           if (type[j] == "ADR"){
             data_vector_transform <- adr(data_vector, fit_curves, c(spec$Effective[i], spec$Recency[i], spec$Period[i], spec$Decay[i]))

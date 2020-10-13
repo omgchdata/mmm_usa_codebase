@@ -1,0 +1,10 @@
+Parameter,Value
+ModelForm,lin_lin
+Panel,Y
+CS,GeoCode
+Time,Week
+BeginDate,1/2/2017
+EndDate,4/13/2020
+SimStart,4/22/2019
+SimEnd,4/13/2020
+Mroi,0.2

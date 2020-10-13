@@ -5,6 +5,7 @@
 # It takes msmp model object, start and end date (which are optional),
 # and returns a ggplot object.
 # In order to run this function, the model object must have $Decomposition data frame.
+# Julia Liu 2020-05-04 : now the "Base"/"base" should always come at the bottom of the stack chart. 
 ####################################################
 decomp_chart_stackedarea <- function(obj, start_date = "1980-01-01", end_date = "2100-01-01") {
 
@@ -28,6 +29,10 @@ decomp_chart_stackedarea <- function(obj, start_date = "1980-01-01", end_date = 
   spec$d_var = paste("d", spec$Trans_Variable, sep="_")
   d <- left_join(d, spec[, c("AggregateVariable", "d_var")])
   dd <- d %>% group_by(AggregateVariable, time) %>% summarise(decomp = sum(decomp))
+  dd$AggregateVariable <- tolower(dd$AggregateVariable)
+  # put the "base" last in the factor order.
+  dd$AggregateVariable <- factor(dd$AggregateVariable,levels=c(setdiff(unique(dd$AggregateVariable), "base"), "base"))
+  
   p <- ggplot(dd[!is.na(dd$AggregateVariable),], aes(x=time, y=decomp, fill=AggregateVariable)) + 
        geom_area()
   return(p)

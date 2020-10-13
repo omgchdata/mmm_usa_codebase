@@ -1,17 +1,14 @@
-#' Execute Model Fitting
-#'
-#' @param obj
-#' @param Method
-#'
-#' @return
-#' @export
-#'
-#' @description
-#'
-#' @examples
-#'
+#######################################
+# this function run random effect model 
+#
+# update notes:
+# 2020-09-20 Julia Liu : added eq_lmer equation. It is constructed to reflect the _Variable.csv.
+#                        using this equation, modeler can easiy run lmer or stan_lmer function 
+#                        as an alternative
+#######################################
 Run_Model_Panel <- function(obj, Method="Bayes") {
-
+  
+  library(ggforce)
   Method="Bayes"
   big_number <- 100000           # for difuse priors
   spec <- obj$spec
@@ -50,7 +47,16 @@ Run_Model_Panel <- function(obj, Method="Bayes") {
   eq <- as.formula(eq)
 
   eq_lm <- paste(IV[!IV %in% "Intercept"], collapse =" + ")
-  eq_lm <- as.formula(paste(DepVar, " ~ ", eq_lm))
+  eq_lm <- (paste(DepVar, " ~ ", eq_lm))
+  obj$eq_lm <- as.formula(eq_lm)
+
+  # create lmer syntax of equation. This gives modelers a choice to run lmer or stan_lmer model.
+  rand_iv <- spec$Trans_Variable[  tolower(spec$VaryBy)!="none"]
+  rand_iv[tolower(rand_iv) == "intercept"] = "1"
+  rand_eq <- paste(rand_iv, collapse = "+")  
+  rand_eq <- paste(rand_eq, "|", obj$CS)
+  rand_eq <- paste("(", rand_eq, ")")
+  obj$eq_lmer <- as.formula(paste(eq_lm, rand_eq, sep="+"))
 
 
   print("calling my_bayes()...")
@@ -73,7 +79,13 @@ Run_Model_Panel <- function(obj, Method="Bayes") {
   hb_var <- spec$Trans_Variable[spec$VaryBy != "None" & spec$Orig_Variable != "Intercept"]
 #  hb_var <- spec$Trans_Variable[spec$Orig_Variable != "Intercept"]
 
-  spec$PriorSD_Adj <- 1
+  if("PriorSD_Adj" %in% names(spec)) {
+    spec$PriorSD_Adj <- abs(spec$PriorSD_Adj)
+  } else {
+    print("PriorSD_Adj is not in the _Variable.csv file. Set it to the default value 1.")
+    spec$PriorSD_Adj <- 1
+  }
+  
   if(length(hb_var) >= 1) {
   for (j in 1:length(hb_var)) {
     # if override == "N", calculate emperical prior and populate the priors dataframe
@@ -86,7 +98,7 @@ Run_Model_Panel <- function(obj, Method="Bayes") {
         } else {
           priors$Prior_Mean[grep(hb_var[j], priors$Variables)] = mean(tmp[tmp>0])
         }
-      } else if(spec$Sign[spec$Trans_Variable == hb_var[j]] > 0 ) {
+      } else if(spec$Sign[spec$Trans_Variable == hb_var[j]] < 0 ) {
         if(is.nan(mean(tmp[tmp<0]))) {
           cat("The code is not able to find a emperical prior for", hb_var[j], "\n")
           cat("A diffuse prior is used. If you want an informative prior, you can override.\n")
@@ -115,8 +127,10 @@ Run_Model_Panel <- function(obj, Method="Bayes") {
   a$Variables <- as.character(a$Variables)
   priors <- a
   
-  bayes_obj <- my_bayes(formula=eq, data=x, priors=priors) 
+  # run the final bayesian model with the priors "learned" from the 1st step.
+  bayes_obj <- my_bayes(formula=eq, data=x, priors=priors)
 
+  # now create the coefficient data frame that has results by variable by panel
   varyby <- unique(obj$spec$VaryBy)[unique(obj$spec$VaryBy) != "None"]
   if(length(varyby) >0 ) {
     b <- bayes_obj$coefficients %>% 
@@ -157,11 +171,56 @@ Run_Model_Panel <- function(obj, Method="Bayes") {
   bayes_obj$coefficients <- full_b
   obj$Model <- bayes_obj
   
+  # calculate actual vs predicted
   obj$Model$act_pred <- act_pred(obj)
-
-  obj$Model_interLM <- bayes_obj_inter
-  obj$lmModel <- lm(eq_lm, data=x)
   
+  #obj$Model_interLM <- bayes_obj_inter
+  obj$lmModel <- lm(obj$eq_lm, data=x)
+  
+  # calculate MAPE at DMA level
+  tmp <- obj$Model$act_pred
+  dv <- obj$spec$Orig_Variable[obj$spec$Variable_Type == "Dependent"]
+  tmp$time <- tmp[[obj$Time]]
+  tmp$KPI <- tmp[[dv]]
+  tmp$cs <- tmp[[obj$CS]]
+  obj$Model$MAPE <- tmp %>% group_by(cs) %>% summarise(MAPE = MAPE(KPI, predicted))
+  names(obj$Model$MAPE) <- c(obj$CS, "MAPE") 
+  
+
+  
+  # create actual vs predicted charts by DMA. It is stored in mod_obj$Model$act_pred_cs
+  p <- list()
+  for (i in 1:round(length(unique(tmp[[mod_obj$CS]]))/6)) {
+    p[[i]] <- ggplot(tmp) + 
+      geom_point(aes(time, KPI), size=0.5) + 
+      geom_line(aes(time, predicted), colour = "red") + facet_wrap_paginate(~ cs, ncol=2, nrow = 3,page=i, scales="free") + theme_light()
+  }
+  obj$Model$act_pred_dma_chart <- p
+  
+  tmp <- tmp %>% group_by(time) %>% summarise(KPI=sum(KPI), predicted = sum(predicted))
+  tmp$residual <- tmp$KPI - tmp$predicted
+  
+  # calculate R2 at the aggregated/national level
+  SS_tot <- sum((tmp$KPI-mean(tmp$KPI))^2)
+  #  SS_res <- sum((residuals)^2)
+  SS_res <- t(tmp$residual) %*% tmp$residual
+  obj$Model$R2_Nat <- 1-(SS_res/SS_tot)
+  obj$Model$R2 <- NULL
+  
+  obj$Model$act_pred_chart <- 
+    ggplot(data = tmp, aes(x = tmp$time)) + 
+    geom_point(aes(y = KPI, colour = "KPI"), size = 0.8) + 
+    geom_line(aes(y = KPI, colour = "KPI"), size = 0.8) + 
+    geom_line(aes(y = predicted, colour = "predicted"), size = 0.8) +
+    geom_bar (aes(y = residual, fill = "residual"), stat = "identity") +
+    labs(title = dv,
+         subtitle = paste("From", min(tmp$time), "to", max(tmp$time), sep = " "),
+         x = obj$Time, y = "actual vs predicted and residual") +
+    scale_fill_manual(name="Residual", 
+                      values = c("residual" = "grey50"), guide = guide_legend(order = 2))
+  
+  
+  # create a result_all data frame that contains model specifications, estimates, VIF, and etc.
   obj$Model$DW <- durbinWatsonTest(obj$lmModel)
   obj$Model$VIF <- data.frame(vif(obj$lmModel))
   obj$Model$VIF$variable <- row.names(obj$Model$VIF)
@@ -174,8 +233,24 @@ Run_Model_Panel <- function(obj, Method="Bayes") {
   obj$Model$result_all <- obj$Model$result_all[, c("Variables", names(obj$Model$coefficients)[1], "VIF", "Estimate","Error", "Tvalue")]
   names(obj$Model$result_all)[names(obj$Model$result_all)=="Variables"] <- "Trans_Variable"
   obj$Model$result_all <- full_join(spec, obj$Model$result_all)
-
-  obj$Model$result_all$R2 <- rep(obj$Model$R2, nrow(obj$Model$result_all))
+  
+  obj$Model$result_all$R2 <- rep(obj$Model$R2_Nat, nrow(obj$Model$result_all))
   obj$Model$result_all$DW <- rep(obj$Model$DW$dw, nrow(obj$Model$result_all))
+
+  
+  a <- obj$Model$Priors %>% 
+    separate(Variables, into = c(obj$CS, "Variables"), sep = "\\:", fill="left")
+  a[[obj$CS]] <- gsub(obj$CS, "", a[[obj$CS]])
+  a$Error <- NULL
+  a$Tvalue <- NULL
+  names(a)[names(a)=="Estimate"] <- "estimate_freq"
+  #a <- a[, c(obj$CS, "Variables", "Estimate")]
+  #a <- spread(a, Variables, Estimate)
+  
+  b <- obj$Model$coefficients[, c(obj$CS, "Variables", "Estimate")]
+  names(b)[names(b)=="Estimate"] <- "estimate_bayes"
+  obj$Model$freq_priors_bayes <- full_join(a, b)
+  obj$Model$freq_priors_bayes <- 
+    obj$Model$freq_priors_bayes[obj$Model$freq_priors_bayes$Variables %in% obj$spec$Trans_Variable[tolower(obj$spec$VaryBy) != "none"],]
   return(obj)
 }

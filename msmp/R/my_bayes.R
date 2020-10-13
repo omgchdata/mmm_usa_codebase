@@ -21,10 +21,16 @@
 #'
 #' mod <- my_bayes("a ~ b + c", sample_data)
 #'
-my_bayes = function(formula, data, priors_mean=NULL, priors_sd=NULL) {
+
+########################################
+# update notes:
+# 2020-08-14 : Julia Liu changed the var_cov <- sig2*solve(t(X) %*% X +A, tol = 1e-25)
+#              to var_cov <- sig2*solve(t(X) %*% X +A, tol = 1e-35)
+########################################
+my_bayes = function(formula, data, priors=NULL) {
 
 
-  big_number <- 100000           # for difuse priors
+  big_number <- 1000000           # for diffuse priors
 
   DepVar <- all.vars(formula)[1]
   IV <- all.vars(formula)[-1]
@@ -36,16 +42,12 @@ my_bayes = function(formula, data, priors_mean=NULL, priors_sd=NULL) {
   Xdf <- data.frame(X)
   IV <- names(Xdf)
 
-  if(is.null(priors_mean)) {
-    print("priors mean is not specified. The priors mean will be set to zeros.")
-#    priors <- data.frame(IV, rep(0, length(IV)), rep(sqrt(big_number), length(IV)))
-#    names(priors) <- c("Trans_Variable", "Prior_Mean", "Prior_SD")
-    priors_mean <- rep(0, length(IV))
-#    priors$Prior_SD <- as.numeric(priors$Prior_SD)
-  }
-  if(is.null(priors_sd)) {
-    cat("priors SD is not specified. The priors SD will be set to", sqrt(big_number), "\n")
-    priors_sd <- rep(sqrt(big_number), length(IV))
+  if(is.null(priors)) {
+    print("priors is not specified. The priors will be set to difuse priors.")
+    priors <- data.frame(IV, rep(0, length(IV)), rep(sqrt(big_number), length(IV)))
+    names(priors) <- c("Trans_Variable", "Prior_Mean", "Prior_SD")
+    priors$Prior_Mean <- as.numeric(priors$Prior_Mean)
+    priors$Prior_SD <- as.numeric(priors$Prior_SD)
   }
 
   # setup diffuse priors and run the model to estimate the model error (sigma2)
@@ -60,19 +62,17 @@ my_bayes = function(formula, data, priors_mean=NULL, priors_sd=NULL) {
   W <- rbind(X,U)      # combine the U matrix with design matrix
   nu <- c(y, (U %*% betabar))
   WpW <- t(W) %*% W
-  IWpW <- solve(WpW, tol = 1e-25)
+  IWpW <- solve(WpW, tol = 1e-35)
   btilde <- IWpW %*% t(W) %*% nu    # basicaly OLS
 
   yhat <- X %*% btilde
   e2 <- sum((yhat-y)^2)
-  sig2_hat <- e2/(nrow(X) - ncol(X))    # this is the estimated sigma squared
+  sig2_hat <- e2/(nrow(W) - ncol(W))    # this is the estimated sigma squared
 
   # use the estimate model error to run the final bayes model
-#  betabar <- priors$Prior_Mean
-  betabar <- priors_mean
+  betabar <- priors$Prior_Mean
   sig2 <- sig2_hat
-#  sd2 <- priors$Prior_SD^2
-  sd2 <- priors_sd^2
+  sd2 <- priors$Prior_SD^2
   B <- diag(sd2, ncol(X))
   A <- sig2 * diag(1/sd2, ncol(X))
 
@@ -81,9 +81,9 @@ my_bayes = function(formula, data, priors_mean=NULL, priors_sd=NULL) {
   W <- rbind(X,U)      # combine the U matrix with design matrix
   nu <- c(y, (U %*% betabar))
   WpW <- t(W) %*% W
-  IWpW <- solve(WpW, tol = 1e-25)
+  IWpW <- solve(WpW, tol = 1e-35)
   btilde <- IWpW %*% t(W) %*% nu
-  var_cov <- sig2*solve(t(X) %*% X +A, tol = 1e-25)   # this is the error
+  var_cov <- sig2*solve(t(X) %*% X +A, tol = 1e-35)   # this is the error
   error <- sqrt(diag(var_cov))
   tvalue <- btilde/error
   fitted_value <- X %*% btilde
@@ -91,7 +91,7 @@ my_bayes = function(formula, data, priors_mean=NULL, priors_sd=NULL) {
   SS_tot <- sum((y-mean(y))^2)
 #  SS_res <- sum((residuals)^2)
   SS_res <- t(residuals) %*% residuals
-  sigma <- sqrt(SS_res/(nrow(X) - ncol(X)))
+  sigma <- sqrt(SS_res/(nrow(W) - ncol(W)))
   R2 <- 1-(SS_res/SS_tot)
 
   coefficients <- data.frame(cbind(as.vector(btilde), as.vector(error)))

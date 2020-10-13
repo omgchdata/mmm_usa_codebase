@@ -13,15 +13,6 @@ act_pred <- function( obj ) {
   full_b$Variables <- paste0("beta_", full_b$Variables)
   full_b <- spread(full_b, Variables, Estimate)
 
-  if(is.null(obj$CS)) {
-    if( !("NAT"  %in% names(x) )) {
-      x$NAT <- "all"
-    }
-    if( nrow(full_b)==1) {
-      full_b$NAT <- "all"
-    }
-  }
-  
   x <- left_join(x, full_b)
   x$predicted <- 0
   IV <- spec$Trans_Variable[spec$Include == 1 & tolower(spec$Variable_Type) != "dependent"]

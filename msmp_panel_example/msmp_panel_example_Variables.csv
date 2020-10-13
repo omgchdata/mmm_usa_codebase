@@ -1,0 +1,17 @@
+Orig_Variable,Trans_Variable,AggregateVariable,Variable_Type,Include,VaryBy,Transform,TransformType,Lag,Scale,Effective,Recency,Decay,Peak,Length,Window,Prior_Mean,Prior_SD,PriorSD_Adj,Sign,Override,Simulate,Spent_Variable
+KPI,KPI_t,KPI,Dependent,1,None,Y,mc,NA,1,NA,NA,0,1,600,NA,0,1.00E+10,1,0,N,N,NA
+Intercept,Intercept,Base,Base,1,GeoCode,N,None,NA,1,NA,NA,0,1,600,NA,0,1.00E+10,1,0,N,N,NA
+seasonality,seasonality_t,Base,Base,1,None,Y,ma,NA,1,NA,NA,0,1,600,1,0,1.00E+10,1,1,N,N,NA
+base_price,base_price_t,Price,Base,1,None,Y,ma,NA,1,NA,NA,0,1,600,4,0,1.00E+10,1,-1,N,N,NA
+acv_distribution,acv_distribution_t,Distribution,Base,1,None,Y,ma,NA,1,NA,NA,0,1,600,2,0,1.00E+10,1,1,N,N,NA
+price_discount,price_discount_t,Distribution,Base,1,None,Y,ma,NA,1,NA,NA,0,1,600,2,0,1.00E+10,1,1,N,N,NA
+feature,feature_t,Distribution,Base,1,GeoCode,Y,ma,NA,1,NA,NA,0,1,600,2,0,1.00E+10,1,1,N,N,NA
+display,display_t,Distribution,Base,1,GeoCode,Y,ma,NA,1,NA,NA,0,1,600,2,0,1.00E+10,1,1,N,N,NA
+feature_display,feature_display_t,Distribution,Base,1,None,Y,ma,NA,1,NA,NA,0,1,600,2,0,1.00E+10,1,1,N,N,NA
+video,video_t,OLV,Marketing,1,None,Y,adstockv3_log,NA,1,NA,NA,0.9,1,4,NA,0,1.00E+10,0.5,1,N,Y,DigitalVideo_Spend
+audio,audio_t,Audio,Marketing,1,None,Y,adstockv3_log,NA,1,NA,NA,0.7,1,600,NA,0,1.00E+10,0.7,1,N,Y,Podcast_Audio_Spend
+digital_display,digital_display_t,Display,Marketing,1,None,Y,adstockv3_log,NA,1,NA,NA,0.7,1,600,NA,0,1.00E+10,1,1,N,Y,DigitalDisplay_Spend
+search,search_t,Search,Marketing,1,GeoCode,Y,adstockv3_log,NA,1,NA,NA,0.8,1,4,NA,0,1.00E+10,0.5,1,N,Y,Total_Search_Spend
+OOH,OOH_t,OOH,Marketing,1,GeoCode,Y,adstockv3_log,NA,1,NA,NA,0.9,1,600,NA,0,1.00E+10,0.8,1,N,Y,OOH_Spend
+PR,PR_t,PR,Marketing,1,None,Y,adstockv3_log,NA,1,NA,NA,0.6,1,5,NA,0,1.00E+10,0.5,1,N,Y,Total_PR_Spend
+samples,samples_t,Sampling,Marketing,1,GeoCode,Y,ma,NA,1,NA,NA,0,1,600,2,0,1.00E+10,1,1,N,N,NA
