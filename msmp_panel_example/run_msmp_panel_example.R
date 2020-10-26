@@ -10,7 +10,7 @@ library(plotly)
 #needs(data.table)
 #Define the server : pc or mac
 if (Sys.info()['sysname'] == "Darwin") {server <- "/Volumes"} else {server <- "//nyccentral"}
-code_dir <- paste(server, "/Annalect/BrandScience/msmp/R/", sep="")
+code_dir <- "C:/Users/julia.liu/OneDrive - OneWorkplace/Documents/MyWork/an_ms_modelplatform/msmp/R/"
 
 source(paste(code_dir, "msmp_setup.R", sep = ""))
 source(paste(code_dir, "Check_Data.R", sep = ""))
@@ -25,13 +25,12 @@ source(paste(code_dir, "Decomp_v2.R", sep = ""))
 source(paste(code_dir, "DueToChart.R", sep = ""))
 source(paste(code_dir, "responsecurve.R", sep = ""))
 source(paste(code_dir, "decomp_summary_panel.R", sep = ""))
-source(paste(code_dir, "decomp_summary_temp.R", sep = ""))
 
 #######  define project directories ##############
 # please edit these lines to define the path to the project folder.
 ProjectName <-  "msmp_panel_example"            # the name of the subfolder that contains the model project
 OutDir <- "output"
-RootDirectory <- "C:/Users/julia.liu/OneDrive - OneWorkplace/Documents/MyWork/msmp/doc/"
+RootDirectory <- "C:/Users/julia.liu/OneDrive - OneWorkplace/Documents/MyWork/an_ms_modelplatform/"
 ProjectDirectory <- paste(RootDirectory, ProjectName, "/", sep="")   # this is the full path of the project
 
 ###################
@@ -54,7 +53,7 @@ CoefficientsFile <- paste(output_folder,  "/", ProjectName, "_Coefficients.csv",
 DecompFile <- paste(output_folder,  "/", ProjectName, "_Decomp.csv", sep="")
 RCFile <- paste(output_folder,"/", ProjectName, "_ResponseCurve.csv", sep="")
 kpi_spentFile <- paste(output_folder,"/", ProjectName, "_kpi_spent.csv", sep="")
-ModObjectFile <- paste(output_folder, "/", ProjectName, "_ModObj.RData", sep="")
+ModObjectFile <- paste(output_folder, "/", ProjectName, ".RData", sep="")
 #DecompSumFile <- paste(output_folder, "/", ProjectName, "_DecompSummary.csv",  sep="")
 ModelAllResultFile <- paste(output_folder, "/", ProjectName, "_result_workbook.xlsx", sep="")
 
@@ -97,11 +96,15 @@ write_csv(mod_obj$Model$coefficients, CoefficientsFile)
 ######################
 # Decomp calculation
 ######################
-
 mod_obj <- Decomp(obj = mod_obj, incl_spent = F)
 write_csv(mod_obj$Decomposition_panel, DecompFile)
 
-#dueto <- DueToChart(mod_obj$Decomposition, mod_obj$spec)
+#dueto <- DueToChart(mod_obj$Decomposition, 
+#                    mod_obj$spec, 
+#                    mod_obj$SimStart, 
+#                    mod_obj$SimEnd, 
+#                    mod_obj$SimStart-365, 
+#                    mod_obj$SimEnd-365)
 #ggplotly(dueto$chart)
 
 #decomp_sum <- panel_decomp(mod_obj)

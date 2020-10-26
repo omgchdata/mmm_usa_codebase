@@ -27,5 +27,9 @@ decomp_summary <- function (df, startDate, endDate, dependentVar, spec = NULL) {
     mediaContribution <- round(media$Percent, digits = 4)
     print(paste0("Total Media Contribution: ", mediaContribution))
   }
+  
+  # add the time frame to the column names
+  names(output)[2] = paste(names(output)[2], startDate, endDate, sep="_")
+  names(output)[3] = paste(names(output)[3], startDate, endDate, sep="_")
   return(output)
 }

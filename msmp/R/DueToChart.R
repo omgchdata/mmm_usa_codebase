@@ -4,20 +4,21 @@
 # update notes:
 # Julia Liu 2020-05-15 : fixed a bug and removed portion that is specific to Bacardi
 # Julia Liu 2020-06-03 : using "join" with the model spec sheet to get to AggregateVariable level.
+# Yi Wu 2020-09-16 : enable custom date ranges
 ############################################################################
 library(lubridate)
 library(tidyverse)
 library(reshape)
-DueToChart <- function(df, spec) {
+# For first two parameters, use mod_obj$Decomposition and mod_obj$spec
+DueToChart <- function(df, spec, startdate_current, enddate_current, startdate_previous, enddate_previous, current_name = "Current_Period", previous_name = "Past_Period") {
   names(df)[1] <- "Week"
   depvar <- spec$Orig_Variable[tolower(spec$Variable_Type) == "dependent"]
   spec$AggregateVariable[tolower(spec$Variable_Type) == "dependent"] <- "KPI"
   dueto_obj <- list()
   decomp_pct <- df
   decomp_pct$Yearly <- 0
-  lastweek <- max(decomp_pct$Week)
-  decomp_pct$Yearly[decomp_pct$Week <= lastweek & decomp_pct$Week >= (lastweek - weeks(51))] <- 'CurrentYear'             # the latest 52 weeks
-  decomp_pct$Yearly[decomp_pct$Week <= (lastweek - weeks(52)) & decomp_pct$Week > (lastweek - weeks(104))] <- 'YearAgo'  # one year ago
+  decomp_pct$Yearly[decomp_pct$Week <= enddate_current & decomp_pct$Week >= startdate_current] <- 'Current_Period'
+  decomp_pct$Yearly[decomp_pct$Week <= enddate_previous & decomp_pct$Week >= startdate_previous] <- 'Past_Period'  
 
   lkup <- spec[, c("Orig_Variable", "Trans_Variable", "AggregateVariable", "Variable_Type")]
   lkup$d_var <- ifelse(lkup$AggregateVariable!="KPI", paste("d_", lkup$Trans_Variable, sep=""), lkup$Trans_Variable)
@@ -31,18 +32,18 @@ DueToChart <- function(df, spec) {
   pct <- as.data.frame(pct)
  
   pct$d_var <- row.names(pct)
-  pct <- right_join(lkup, pct)
+  pct <- dplyr::right_join(lkup, pct)
   pct$AggregateVariable[pct$d_var == "Residual"] <- "Residual"
-  pct <- pct[, c("AggregateVariable", "CurrentYear", "YearAgo")]
+  pct <- pct[, c("AggregateVariable", "Current_Period", "Past_Period")]
   
   # aggregate decomp by AggregateVariable name
   pctnew <- pct %>%
-    group_by(AggregateVariable) %>%
-    summarise(YearAgo = sum(YearAgo), CurrentYear = sum(CurrentYear))
+    dplyr::group_by(AggregateVariable) %>%
+    dplyr::summarise(Past_Period = sum(Past_Period), Current_Period = sum(Current_Period))
   pctnew <- pctnew[!is.na(pctnew$AggregateVariable), ]
   
-  # calculate percentage change based on YearAgo KPI
-  pctnew$diff <- (pctnew$CurrentYear - pctnew$YearAgo)/pctnew$YearAgo[pctnew$AggregateVariable =="KPI"]
+  # calculate percentage change based on Past_Period KPI
+  pctnew$diff <- (pctnew$Current_Period - pctnew$Past_Period)/pctnew$Past_Period[pctnew$AggregateVariable =="KPI"]
 
   pctnew <- pctnew[order(pctnew$diff), ]
 
@@ -54,7 +55,7 @@ DueToChart <- function(df, spec) {
   percent <- function(x, digits = 2, format = "f", ...) {
     paste0(formatC(100 * x, format = format, digits = digits, ...), "%")
   }
-  pct$CurrentYearPCT <- percent(pct$CurrentYear/pct$CurrentYear[pct$AggregateVariable =="KPI"])
+  pct$Current_PeriodPCT <- percent(pct$Current_Period/pct$Current_Period[pct$AggregateVariable =="KPI"])
 
   chart <-
   ggplot(pctnew, aes(x = AggregateVariable, y = diff)) +
@@ -62,7 +63,7 @@ DueToChart <- function(df, spec) {
     scale_fill_manual(name="Due-to Effect",
                       labels = c("Negative Effect", "Positive Effect"),
                       values = c("Negative"="#f8766d","Positive"="#00ba38")) +
-    labs(subtitle="Current Year vs. Year Ago",
+    labs(subtitle=paste0(current_name," vs. ", previous_name),
          title= paste("Due-to Chart", sep = " ")) +
     coord_flip()+
     guides(fill = guide_legend(reverse = TRUE)) +              # flip ordering of legend without altering ordering in plot
@@ -77,6 +78,10 @@ DueToChart <- function(df, spec) {
   #dueto_obj$pct <- pct[c(1,ncol(pct)-1,ncol(pct)-3,ncol(pct)-4,ncol(pct))]
   dueto_obj$pct <- pctnew
   dueto_obj$chart <- chart
+  
+  names(dueto_obj$pct)[2] <- previous_name
+  names(dueto_obj$pct)[3] <- current_name 
+  
   return(dueto_obj)
 }
 

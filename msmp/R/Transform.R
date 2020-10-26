@@ -8,7 +8,7 @@
 #                        mod_obj$data$scl
 #                        mod_obj$data$cen
 # Julia Liu 2020-03-26 : added "adstockv2" transformation
-# Julia Liu 2020-04-27 : added "adstock_v3" transformation. This transformation has 3 parameters
+# Julia Liu 2020-04-27 : added "adstockv3" transformation. This transformation has 3 parameters
 #                        decay 
 #                        peak
 #                        length
@@ -238,7 +238,11 @@ Transform = function(obj, print=TRUE) {
           data_vector_transform <- adstockv3(data_vector, spec$Decay[i], spec$Peak[i], spec$Length[i])
         }
         if (type[j] == "ADR"){
-          data_vector_transform <- adr(data_vector, fit_curves, c(spec$Effective[i], spec$Recency[i], spec$Period[i], spec$Decay[i]))
+          if(is.null(fit_curves)) {
+            stop("Please make sure you have fit curves (mod_obj$fit_curves) for adr transformation. \n")
+          } else {
+            data_vector_transform <- adr(data_vector, fit_curves, c(spec$Effective[i], spec$Recency[i], spec$Period[i], spec$Decay[i]))
+          }
         }
         if (type[j] == "ABC"){
           data_vector_transform <- abc(data_vector, spec$A[i], spec$B[i], spec$C[i])

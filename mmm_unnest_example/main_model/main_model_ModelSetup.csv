@@ -8,5 +8,5 @@ numSubModel,1
 SimStart,12/31/2018
 SimEnd,12/23/2019
 subModel1Dir,sub_model
-Submodel_Link1,search
-Mroi,0.1
+Submodel_Link1,search_t
+Mroi,0.05
