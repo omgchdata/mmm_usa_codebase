@@ -11,8 +11,15 @@
 #       model. It does not need to contain the transformed varialbles 
 #       as the predict_msmp function will transform the variable acording
 #       to the model specification.
+# decomp : a logic (TRUE or FALSE). It is default to FALSE.
+#          when it is set to T, the function returns "contribution" by each variable
+#          in addition to the forecast. 
+# Update notes:
+# Julia Liu 2020-11-12: added decomp (a logic) argument. 
+# Julia Liu 2022-05-16: added the predict_panel_msmp function
+#                       reverse mc (mean-centering) if the dep var is mean centered. 
 ######################################################################
-predict_msmp <- function(obj, data) {
+predict_msmp <- function(obj, data, decomp=F) {
 
   spec <- obj$spec[obj$spec$Include == 1, ]
   depvar <- spec$Trans_Variable[tolower(spec$Variable_Type) == "dependent"]
@@ -41,7 +48,7 @@ predict_msmp <- function(obj, data) {
   data <- data[order(data[[obj$Time]]), ]
   orig_data <- obj$data               # put aside the original model dataset 
   obj$data <- data
-  obj <- Transform(obj, print=T)  # transform  the variables
+  obj <- Transform(obj, print=F)  # transform  the variables
   # create a new data dataframe 
   obj$new_data <- obj$data[, unique(c(obj$Time, depvar, spec$Orig_Variable, spec$Trans_Variable))]
   obj$data <- orig_data   # put back the original dataset
@@ -52,5 +59,39 @@ predict_msmp <- function(obj, data) {
   result <- data.frame(obj$new_data[[obj$Time]], predict)
   names(result) <- c(obj$Time, "predict")
 
+  if(obj$spec$Transform[tolower(obj$spec$Variable_Type)=="dependent"] == "Y" &
+     tolower(obj$spec$TransformType[tolower(obj$spec$Variable_Type)=="dependent"]) == "mc" ) {
+    result$predict <- result$predict*obj$data$scl[1] + obj$data$cen[1]
+  }
+    
+
+  if(decomp) {
+    d_var = paste("d", iv, sep="_")
+    for(i in 1:length(d_var)) {
+      result[[d_var[i] ]] <- coef$Estimate[i] * obj$new_data[[ iv[i]]]
+    }
+  }
+  
   return(result)
+}
+
+
+predict_panel_msmp <- function(obj, data, decomp=F) {
+  cs <- unique(obj$Model$coefficients[[obj$CS]])
+  
+  # loop through panels and do forecasting one panel at a time
+  pred <- list()
+  for (i in 1:length(cs)) {
+    cat("forecasting ", cs[i], "\n")
+    obj2 <- obj
+    obj2$data <- obj2$data[obj2$data[[obj2$CS]]== cs[i],]
+    obj2$Model$coefficients <- obj2$Model$coefficients[obj2$Model$coefficients[[obj2$CS]]==cs[i],]
+    data_tmp <- data[data[[obj2$CS]] == cs[i],]
+    pred[[i]] <- predict_msmp(obj = obj2, data=data_tmp )
+    pred[[i]][[obj2$CS]] <- cs[i]
+  }
+  
+  
+  pred_panel <- do.call("rbind", pred)
+  return(pred_panel)
 }

@@ -1,5 +1,4 @@
-#' Bayes Modeling function
-#'
+#' Bayes Regression function
 #' @param formula: Formula object: str
 #' @param data: Dataset: data.frame
 #' @param priors: Priors: data.frame
@@ -7,8 +6,11 @@
 #' @return list
 #' @export
 #'
-#' @description
-#' Bayesian Regression (Created on March 30, 2016)
+#' @description this function is the sparse matrix version of my_bayes(). 
+#' It uses sparse.model.matrix function in Matrix package. 
+#' Please make sure Matrix package is installed. 
+#' 
+#' Bayesian Regression using sparse matrix (Created on May 12, 2022)
 #'   formula (character string) : model formula
 #'   data (dataframe) :   dataset for the regression
 #'   priors (dataframe) : data frame that contains variable name, Prior_Mean, and Prior SD.
@@ -21,14 +23,18 @@
 #'
 #' mod <- my_bayes("a ~ b + c", sample_data)
 #'
+
 ########################################
 # update notes:
-# 2020-10-07 : Julia Liu added R2_adj to the model object (mod_obj$R2_adj)
+# 2020-08-14 : Julia Liu changed the var_cov <- sig2*solve(t(X) %*% X +A, tol = 1e-25)
+#              to var_cov <- sig2*solve(t(X) %*% X +A, tol = 1e-35)
+# 2022-05-12 : Julia uses sparse.model.matrix to create the design matrix for regression calculation.
 ########################################
+library(Matrix)
 my_bayes = function(formula, data, priors=NULL) {
 
 
-  big_number <- 10000           # for difuse priors
+  big_number <- 1000000           # for diffuse priors
 
   DepVar <- all.vars(formula)[1]
   IV <- all.vars(formula)[-1]
@@ -36,8 +42,8 @@ my_bayes = function(formula, data, priors=NULL) {
   y <- data[[DepVar]]
 
   formula <- as.formula(formula)
-  X <- model.matrix(formula, data=data)
-  Xdf <- data.frame(X)
+  X <- sparse.model.matrix(formula, data=data)
+  Xdf <- data.frame(model.matrix(formula, data=data))
   IV <- names(Xdf)
 
   if(is.null(priors)) {
@@ -60,12 +66,13 @@ my_bayes = function(formula, data, priors=NULL) {
   W <- rbind(X,U)      # combine the U matrix with design matrix
   nu <- c(y, (U %*% betabar))
   WpW <- t(W) %*% W
-  IWpW <- solve(WpW, tol = 1e-25)
-  btilde <- IWpW %*% t(W) %*% nu    # basicaly OLS
+  #WpW <- crossprod(W, W)
+  IWpW <- solve(WpW, tol = 1e-35)
+  btilde <- IWpW %*% t(W) %*% nu    # basically an OLS move
 
   yhat <- X %*% btilde
   e2 <- sum((yhat-y)^2)
-  sig2_hat <- e2/(nrow(X) - ncol(X))    # this is the estimated sigma squared
+  sig2_hat <- e2/(nrow(W) - ncol(W))    # this is the estimated sigma squared
 
   # use the estimate model error to run the final bayes model
   betabar <- priors$Prior_Mean
@@ -79,9 +86,9 @@ my_bayes = function(formula, data, priors=NULL) {
   W <- rbind(X,U)      # combine the U matrix with design matrix
   nu <- c(y, (U %*% betabar))
   WpW <- t(W) %*% W
-  IWpW <- solve(WpW, tol = 1e-25)
+  IWpW <- solve(WpW, tol = 1e-35)
   btilde <- IWpW %*% t(W) %*% nu
-  var_cov <- sig2*solve(t(X) %*% X +A, tol = 1e-25)   # this is the error
+  var_cov <- sig2*solve(t(X) %*% X +A, tol = 1e-35)   # this is the error
   error <- sqrt(diag(var_cov))
   tvalue <- btilde/error
   fitted_value <- X %*% btilde
@@ -89,10 +96,9 @@ my_bayes = function(formula, data, priors=NULL) {
   SS_tot <- sum((y-mean(y))^2)
 #  SS_res <- sum((residuals)^2)
   SS_res <- t(residuals) %*% residuals
-  sigma <- sqrt(SS_res/(nrow(X) - ncol(X)))
+  sigma <- sqrt(SS_res/(nrow(W) - ncol(W)))
   R2 <- 1-(SS_res/SS_tot)
-  R2_adj <- 1-(1-R2)*(nrow(X)-1)/(nrow(X)-1-ncol(X))
-  
+
   coefficients <- data.frame(cbind(as.vector(btilde), as.vector(error)))
   names(coefficients) <- c("Estimate", "Error")
   coefficients$Tvalue <- coefficients$Estimate/coefficients$Error
@@ -104,8 +110,7 @@ my_bayes = function(formula, data, priors=NULL) {
               fitted_value = as.vector(fitted_value),
               residuals = as.vector(residuals),
               sigma = sigma,
-              R2 = R2,
-              R2_adj = R2_adj)
+              R2 = R2)
 
   class(obj) <- "mmmodelr"
   return(obj)

@@ -1,10 +1,12 @@
 MAPE = function(a, f) {
-  mape = mean(abs(a-f)/a)
+  mape = ifelse(a==0, NA, abs(a-f)/a)
+  mape = mean(mape, na.rm=T)
   return(mape)
 }
 
 MAPE_DF = function(df, a, f) {
-  mape = mean(abs(df[[a]] - df[[f]])/df[[a]])
+  mape = ifelse(df[[a]]==0, NA,(abs(df[[a]] - df[[f]])/df[[a]]))
+  mape = mean(mape, na.rm=T)
   return(mape)
 }
 

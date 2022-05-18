@@ -55,7 +55,7 @@ Run_Model <- function(obj, Method="Bayes", loop = FALSE) {
     names(obj$Model$VIF) <- "Variables"
     obj$Model$VIF$VIF <- NA
     obj$Model$VIF$Variables <- as.character(obj$Model$VIF$Variables)
-  } else if( length(IV) < 2 ) {
+  } else if( length(IV) <= 2 ) {
     obj$Model$VIF <- data.frame(obj$Model$coefficients[, c("Variables")])
     names(obj$Model$VIF) <- "Variables"
     obj$Model$VIF$VIF <- NA

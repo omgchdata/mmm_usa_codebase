@@ -9,6 +9,10 @@
 #                    to report at the total search level. You can specify both branded and non branded search 
 #                    variables as "search" in AggregateVariable in the spec file.
 # Julia 2020-06-29 : changed from grep to match on line 89
+# Julia 2021-04-22 : added an argument called "split_var" to unnestr function. 
+#                    it defaults to FALSE. When the model link is split in the sub-model,
+#                    you can set it to TRUE to handle it.
+# Julia 2021-04-34 : fixed vlkup bug
 #########################################################################
 load_nest <- function(submodel_name, root_dir) {
   # Check that the directory exists
@@ -46,7 +50,7 @@ rename <- function(x) {
 
 
 
-unnestr <- function(child, parent, submodel_number) {
+unnestr <- function(child, parent, submodel_number, split_var = FALSE) {
   num <- as.character(submodel_number)
   for (objects in c("child", "parent")) {
     eval(parse(text = gsub("x", objects, "names(x) <- str_to_lower(names(x))")))
@@ -55,7 +59,12 @@ unnestr <- function(child, parent, submodel_number) {
   if (!("decomposition" %in% names(parent)) | !("spec" %in% names(parent))) {stop("parent object needs to have dataframes named decomposition and spec")}
   if (!(paste0("Submodel_Link", num) %in% (parent$setup$Parameter))) {stop(gsub("num", num, "In parent model set up file; missing 'Submodel_Linknum'"))}
   join <- filter(parent$setup, Parameter == paste0("Submodel_Link", num))$Value 
-  if (!(join %in% parent$spec$Trans_Variable)) {stop(gsub("num", num, "parent Submodel_Linknum does not correspond to a parent Trans_Variable"))}
+  # Julia : if the child-parent model link variable is broken into 2 parts in sub model, skip this check
+  if(!split_var) {
+    if (!(join %in% parent$spec$Trans_Variable)) {
+      stop(gsub("num", num, "parent Submodel_Linknum does not correspond to a parent Trans_Variable"))
+    }
+  }
   
   name <- names(child$decomposition)
   name2 <- sapply(name, rename)
@@ -106,7 +115,8 @@ unnestr <- function(child, parent, submodel_number) {
   parent$decomposition <- NULL
   
   # Julia Liu 2020-06-09
-  if(is.null(parent$vlkup)) { 
+  # Julia Liu 2021-04-23
+  if(is.null(child$vlkup)) { 
     v_parent <- parent$spec[, c("Orig_Variable", "Trans_Variable", "AggregateVariable", "Variable_Type")]
     v_child <- child$spec[, c("Orig_Variable", "Trans_Variable", "AggregateVariable", "Variable_Type")]
     # remove the dependent variable from the child model spec
@@ -115,9 +125,11 @@ unnestr <- function(child, parent, submodel_number) {
     vlkup$d_var <- ifelse(tolower(vlkup$Variable_Type ) == "dependent", vlkup$Trans_Variable, paste("d_", vlkup$Trans_Variable, sep=""))
     parent$vlkup <- vlkup
   } else {
-    v_parent <- parent$vlkup
-    v_child <- child$spec[, c("Orig_Variable", "Trans_Variable", "AggregateVariable", "Variable_Type")]
+    v_parent <- parent$spec[, c("Orig_Variable", "Trans_Variable", "AggregateVariable", "Variable_Type")]
+    #v_child <- child$spec[, c("Orig_Variable", "Trans_Variable", "AggregateVariable", "Variable_Type")]
+    v_child <- child$vlkup
     # remove the dependent variable from the child model spec
+    v_parent <- v_parent[tolower(v_parent$Variable_Type) != "dependent", ]
     v_child <- v_child[tolower(v_child$Variable_Type) != "dependent", ]
     vlkup <- full_join(v_parent, v_child)
     vlkup$d_var <- ifelse(tolower(vlkup$Variable_Type ) == "dependent", vlkup$Trans_Variable, paste("d_", vlkup$Trans_Variable, sep=""))

@@ -3,9 +3,8 @@
 #  2020/04/16 Julia Liu : added responsecurve_panel() function. This function should be used when you have a panel model.
 #  2020/05/21 Julia Liu : made changes so that the marginal is caculated even when spent information is not available
 #  2021/03/15 Julia Liu : create aggregate kpi_spent for panel model
-#  2021/10/25 Julia Liu : responsecurve_panel() : obj$data <- orig_data
 ##########################################
-responsecurve = function(obj, showPlot=FALSE) {
+responsecurve_week2month = function(obj, showPlot=FALSE, par_bypanel=FALSE) {
 
   SimuVar <- obj$spec$Orig_Variable[toupper(obj$spec$Simulate) == "Y" & obj$spec$Include == 1 ]
   if(length(SimuVar) == 0) {
@@ -15,11 +14,14 @@ responsecurve = function(obj, showPlot=FALSE) {
   }
   spec <- obj$spec
   orig_data <- obj$data
+  obj$data_month$Intercept <- 1
+  orig_data_week <- obj$data_week
+  orig_data_month <- obj$data_month
   depvar <- spec$Trans_Variable[tolower(spec$Variable_Type) == "dependent"]
 
   SimStart <- obj$SimStart
   SimEnd <- obj$SimEnd
-  delta = seq(-1, 3, obj$mroi_step)
+  delta = c(seq(-1, 0, obj$mroi_step), 0.01, seq(obj$mroi_step, 1.5, obj$mroi_step))
   deltaname = paste("P", delta, sep="")
   deltaname = sub("P-", "N", deltaname)
   
@@ -33,11 +35,17 @@ responsecurve = function(obj, showPlot=FALSE) {
     cat("generating response curve for:", SimuVar[i], "\n")
     transpec = spec[spec$Orig_Variable == SimuVar[i],]
     for (k in 1:length(delta)) {
-      #tmp = obj$data
-      #tmp[[transpec$Orig_Variable]] = tmp[[transpec$Orig_Variable]]*(1+delta[k])
-      obj$data <- orig_data
+      #obj$data <- orig_data
+      obj$data <- orig_data_month
+      obj <- Transform(obj, print=F)
+      # store the dataset that has the transformed (if any) and the raw variables
+      month <- obj$data
+      obj$data <- orig_data_week
       obj$data[[transpec$Orig_Variable]] = obj$data[[transpec$Orig_Variable]]*(1+delta[k])
       obj <- Transform(obj, print=FALSE)
+      week2month_sum <- week2month(df = obj$data,  fun="sum")
+      obj$data <-  suppressMessages(inner_join(month, week2month_sum))
+      
       X = as.matrix(obj$data[,coef$Variables])
       SimuResult[[ paste(transpec$Orig_Variable, deltaname[k], sep="") ]] = X %*% b
     }
@@ -47,6 +55,7 @@ responsecurve = function(obj, showPlot=FALSE) {
   SimuResult = SimuResult[SimuResult[[obj$Time]] >= SimStart & SimuResult[[obj$Time]] <= SimEnd,]
 
   y = apply(SimuResult[,-1], 2, sum)
+  #y = apply(SimuResult[,-1], 2, mean)   # for shared model
   
   RC = matrix(nrow=length(delta), ncol=length(SimuVar))
   for (i in 1:length(SimuVar) ) {
@@ -107,21 +116,37 @@ responsecurve = function(obj, showPlot=FALSE) {
   return(obj)
 }
 
-responsecurve_panel = function(obj, showPlot=FALSE) {
+responsecurve_panel_week2month = function(obj, showPlot=FALSE, par_bypanel=FALSE) {
   
   orig_data <- obj$data
+  orig_data_week <- obj$data_week
+  orig_data_month <- obj$data_month
   store_coef <- obj$Model$coefficients
   coef <- obj$Model$coefficients
+  orig_spec <- obj$spec
   cs <- unique(coef[[obj$CS]])
   
+  #if(par_bypanel) {
+  #  spec <- obj$spec_transform
+  #  split_spec = base::split(spec, spec[[obj$CS]])
+  #} else {
+  #  spec <- obj$spec
+  #}
   rc <- list()
   kpi_spent <- list()
   # loop through the cross sections
   for (i in 1:length(cs) ) {
     obj$Model$coefficients <- coef[coef[[obj$CS]] == cs[i], ]
     obj$data <- orig_data[orig_data[[obj$CS]] == cs[i], ]
+    obj$data_week <- orig_data_week[orig_data_week[[obj$CS]] == cs[i], ]
+    obj$data_month <- orig_data_month[orig_data_month[[obj$CS]] == cs[i], ]
+    obj$data_week[[obj$CS]]  = NULL
+    obj$data_month[[obj$CS]]  = NULL
+    if(par_bypanel) {
+      obj$spec <- obj$spec_transform[obj$spec_transform[[obj$CS]] == cs[i],]
+    }
     cat("working on cross section", cs[i], "\n")
-    tmp_obj <- responsecurve(obj, showPlot = showPlot)
+    tmp_obj <- responsecurve_week2month(obj, showPlot = showPlot)
     rc[[i]] <- cbind(cs[i], tmp_obj$ResponseCurve)
     names(rc[[i]])[1] <- obj$CS
     kpi_spent[[i]] <- cbind(cs[i], tmp_obj$kpi_spent)
@@ -168,6 +193,9 @@ responsecurve_panel = function(obj, showPlot=FALSE) {
   obj$kpi_spent <- mroi
   names(obj$kpi_spent) <- c("Variables", "kpi", "spent", "kpi_per_spent", "mkpi_per_spent", "ratio")
   obj$data <- orig_data
+  obj$data_week <- orig_data_week
+  obj$data_month <- orig_data_month
   obj$Model$coefficients <- store_coef
+  obj$spec <- orig_spec
   return(obj)
 }

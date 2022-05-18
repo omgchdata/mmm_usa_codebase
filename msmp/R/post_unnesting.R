@@ -25,12 +25,7 @@ post_unnesting <- function(obj) {
   d <- left_join(d, obj$vlkup)
   dd <- d %>% group_by(AggregateVariable, time) %>% summarise(contributions = sum(contributions))
   
-  obj$dueto_unnested <- DueToChart(obj$Decomposition, 
-                                   obj$vlkup,
-                                   obj$simstart,
-                                   obj$simend,
-                                   obj$simstart - 365,
-                                   obj$simend - 365)
+  #obj$dueto_unnested <- DueToChart(obj$Decomposition, obj$vlkup)
   obj$Decomposition_Unnested_AggregateVariable <- dd
 
   p <- ggplot(dd[dd$AggregateVariable != "KPI",], aes(x=time, y=contributions, fill=AggregateVariable)) + 

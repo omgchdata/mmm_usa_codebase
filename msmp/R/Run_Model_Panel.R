@@ -2,11 +2,7 @@
 # this function run random effect model 
 #
 # update notes:
-# 2020-09-20 Julia Liu : added eq_lmer equation. It is constructed to reflect the _Variable.csv.
-#                        using this equation, modeler can easiy run lmer or stan_lmer function 
-#                        as an alternative
-#######################################
-Run_Model_Panel <- function(obj, Method="Bayes") {
+Run_Model_Panel <- function(obj, priors = NULL, Method="Bayes") {
   
   library(ggforce)
   Method="Bayes"
@@ -17,8 +13,10 @@ Run_Model_Panel <- function(obj, Method="Bayes") {
   DepVar <- spec$Trans_Variable[spec$Variable_Type == "Dependent"]
   IV <- spec$Trans_Variable[spec$Variable_Type != "Dependent"]
   spec <- spec[spec$Variable_Type != "Dependent", ]
-  priors <- dplyr::select(spec, Orig_Variable, Trans_Variable, Prior_Mean, Prior_SD)
-
+  if(is.null(priors)) {
+    priors <- dplyr::select(spec, Orig_Variable, Trans_Variable, Prior_Mean, Prior_SD)
+  }
+  
   # do some checking and make sure the model variables (DepVar and IV) are in data
   if(DepVar %in% names(x)) {
     y = x[[DepVar]]
@@ -37,16 +35,19 @@ Run_Model_Panel <- function(obj, Method="Bayes") {
   }
 
   eq <- ifelse(spec$VaryBy[1] == "None", spec$Trans_Variable[1], paste(spec$VaryBy[1], spec$Trans_Variable[1], sep=":"))
+  if(nrow(spec) > 1) {
   for (k in 2:nrow(spec)) {
     tmp <- ifelse(spec$VaryBy[k] == "None", spec$Trans_Variable[k], paste(spec$VaryBy[k],spec$Trans_Variable[k],  sep=":"))
         eq <- paste(eq, tmp, sep="+")
   }
-
+  }
+  
   eq <- paste(eq, " -1")
   eq <- paste(DepVar, " ~ ", eq)
   eq <- as.formula(eq)
 
   eq_lm <- paste(IV[!IV %in% "Intercept"], collapse =" + ")
+  #eq_lm <- paste(eq_lm, "-1", sep = " ")
   eq_lm <- (paste(DepVar, " ~ ", eq_lm))
   obj$eq_lm <- as.formula(eq_lm)
 
@@ -58,7 +59,9 @@ Run_Model_Panel <- function(obj, Method="Bayes") {
   rand_eq <- paste("(", rand_eq, ")")
   obj$eq_lmer <- as.formula(paste(eq_lm, rand_eq, sep="+"))
 
-
+  # if prior is not specified
+  if(is.null(priors)) {
+    
   print("calling my_bayes()...")
   bayes_obj_inter <- my_bayes(formula=eq, data=x)
   mod_matrix <- model.matrix(eq, x)
@@ -85,7 +88,20 @@ Run_Model_Panel <- function(obj, Method="Bayes") {
     print("PriorSD_Adj is not in the _Variable.csv file. Set it to the default value 1.")
     spec$PriorSD_Adj <- 1
   }
-  
+  # 2020-09-20 Julia Liu : added eq_lmer equation. It is constructed to reflect the _Variable.csv.
+#                        using this equation, modeler can easiy run lmer or stan_lmer function 
+#                        as an alternative
+# 2021-04-09 Julia Liu : calculates number of pages needed to store the AVP Geo level charts. 
+#                        should have used ceiling() instead of round()
+# 2021-04-21 Julia Liu : added "priors" to Run_Model_Panel function. It defaults to NULL.
+#                        - When it is set to NULL, the Run_Model_Panel will first determine the empirical priors
+#                          then run the final random effect model using the priors.
+#                        - User first runs the Gen_EB_Panel() function to "learn" priors, 
+#                          then set the "priors" in Run_Model_Panel equal to the result of the Gen_EB_Panel.  
+#                          In this case, the Run_model_Panel will skip the 1st step of "learning" priors, and 
+#                          just ran the final model using the priors. 
+#######################################
+
   if(length(hb_var) >= 1) {
   for (j in 1:length(hb_var)) {
     # if override == "N", calculate emperical prior and populate the priors dataframe
@@ -111,7 +127,7 @@ Run_Model_Panel <- function(obj, Method="Bayes") {
 # for now let's set the prior_sd = prior_mean*PriorSD_Adj. The PriorSD_Adj defauls to 1 in the _Variables.csv
 
       priors$Prior_SD[grep(hb_var[j], priors$Variables)] = 
-        priors$Prior_Mean[grep(hb_var[j], priors$Variables)] * spec$PriorSD_Adj[spec$Trans_Variable == hb_var[j]]
+        abs(priors$Prior_Mean[grep(hb_var[j], priors$Variables)] * spec$PriorSD_Adj[spec$Trans_Variable == hb_var[j]])
       if(sum(priors$Prior_SD[grep(hb_var[j], priors$Variables)]) == 0 ) {
         priors$Prior_SD[grep(hb_var[j], priors$Variables)] <- big_number
       }
@@ -126,6 +142,7 @@ Run_Model_Panel <- function(obj, Method="Bayes") {
   a <- arrange(a, Variables)
   a$Variables <- as.character(a$Variables)
   priors <- a
+  }  # if(is.null(priors))
   
   # run the final bayesian model with the priors "learned" from the 1st step.
   bayes_obj <- my_bayes(formula=eq, data=x, priors=priors)
@@ -172,7 +189,9 @@ Run_Model_Panel <- function(obj, Method="Bayes") {
   obj$Model <- bayes_obj
   
   # calculate actual vs predicted
+  #obj$Model$act_pred_modeled <- mod_obj$Model$act_pred
   obj$Model$act_pred <- act_pred(obj)
+  obj$Model$act_pred_orginal <- act_pred(obj)
   
   #obj$Model_interLM <- bayes_obj_inter
   obj$lmModel <- lm(obj$eq_lm, data=x)
@@ -190,7 +209,7 @@ Run_Model_Panel <- function(obj, Method="Bayes") {
   
   # create actual vs predicted charts by DMA. It is stored in mod_obj$Model$act_pred_cs
   p <- list()
-  for (i in 1:round(length(unique(tmp[[mod_obj$CS]]))/6)) {
+  for (i in 1:ceiling(length(unique(tmp[[mod_obj$CS]]))/6)) {
     p[[i]] <- ggplot(tmp) + 
       geom_point(aes(time, KPI), size=0.5) + 
       geom_line(aes(time, predicted), colour = "red") + facet_wrap_paginate(~ cs, ncol=2, nrow = 3,page=i, scales="free") + theme_light()
@@ -199,6 +218,7 @@ Run_Model_Panel <- function(obj, Method="Bayes") {
   
   tmp <- tmp %>% group_by(time) %>% summarise(KPI=sum(KPI), predicted = sum(predicted))
   tmp$residual <- tmp$KPI - tmp$predicted
+
   
   # calculate R2 at the aggregated/national level
   SS_tot <- sum((tmp$KPI-mean(tmp$KPI))^2)
@@ -208,7 +228,7 @@ Run_Model_Panel <- function(obj, Method="Bayes") {
   obj$Model$R2 <- NULL
   
   obj$Model$act_pred_chart <- 
-    ggplot(data = tmp, aes(x = tmp$time)) + 
+    ggplot(data = tmp, aes(x = time)) + 
     geom_point(aes(y = KPI, colour = "KPI"), size = 0.8) + 
     geom_line(aes(y = KPI, colour = "KPI"), size = 0.8) + 
     geom_line(aes(y = predicted, colour = "predicted"), size = 0.8) +
@@ -218,7 +238,8 @@ Run_Model_Panel <- function(obj, Method="Bayes") {
          x = obj$Time, y = "actual vs predicted and residual") +
     scale_fill_manual(name="Residual", 
                       values = c("residual" = "grey50"), guide = guide_legend(order = 2))
-  
+  names(tmp)[grep("time", names(tmp))] <- obj$Time
+  obj$Model$act_pred_national <- tmp
   
   # create a result_all data frame that contains model specifications, estimates, VIF, and etc.
   obj$Model$DW <- durbinWatsonTest(obj$lmModel)
