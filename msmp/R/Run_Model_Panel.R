@@ -2,6 +2,20 @@
 # this function run random effect model 
 #
 # update notes:
+# 2020-09-20 Julia Liu : added eq_lmer equation. It is constructed to reflect the _Variable.csv.
+#                        using this equation, modeler can easiy run lmer or stan_lmer function 
+#                        as an alternative
+# 2021-04-09 Julia Liu : calculates number of pages needed to store the AVP Geo level charts. 
+#                        should have used ceiling() instead of round()
+# 2021-04-21 Julia Liu : added "priors" to Run_Model_Panel function. It defaults to NULL.
+#                        - When it is set to NULL, the Run_Model_Panel will first determine the empirical priors
+#                          then run the final random effect model using the priors.
+#                        - User first runs the Gen_EB_Panel() function to "learn" priors, 
+#                          then set the "priors" in Run_Model_Panel equal to the result of the Gen_EB_Panel.  
+#                          In this case, the Run_model_Panel will skip the 1st step of "learning" priors, and 
+#                          just ran the final model using the priors. 
+#######################################
+
 Run_Model_Panel <- function(obj, priors = NULL, Method="Bayes") {
   
   library(ggforce)
@@ -88,19 +102,6 @@ Run_Model_Panel <- function(obj, priors = NULL, Method="Bayes") {
     print("PriorSD_Adj is not in the _Variable.csv file. Set it to the default value 1.")
     spec$PriorSD_Adj <- 1
   }
-  # 2020-09-20 Julia Liu : added eq_lmer equation. It is constructed to reflect the _Variable.csv.
-#                        using this equation, modeler can easiy run lmer or stan_lmer function 
-#                        as an alternative
-# 2021-04-09 Julia Liu : calculates number of pages needed to store the AVP Geo level charts. 
-#                        should have used ceiling() instead of round()
-# 2021-04-21 Julia Liu : added "priors" to Run_Model_Panel function. It defaults to NULL.
-#                        - When it is set to NULL, the Run_Model_Panel will first determine the empirical priors
-#                          then run the final random effect model using the priors.
-#                        - User first runs the Gen_EB_Panel() function to "learn" priors, 
-#                          then set the "priors" in Run_Model_Panel equal to the result of the Gen_EB_Panel.  
-#                          In this case, the Run_model_Panel will skip the 1st step of "learning" priors, and 
-#                          just ran the final model using the priors. 
-#######################################
 
   if(length(hb_var) >= 1) {
   for (j in 1:length(hb_var)) {
@@ -209,7 +210,7 @@ Run_Model_Panel <- function(obj, priors = NULL, Method="Bayes") {
   
   # create actual vs predicted charts by DMA. It is stored in mod_obj$Model$act_pred_cs
   p <- list()
-  for (i in 1:ceiling(length(unique(tmp[[mod_obj$CS]]))/6)) {
+  for (i in 1:ceiling(length(unique(tmp[[obj$CS]]))/6)) {
     p[[i]] <- ggplot(tmp) + 
       geom_point(aes(time, KPI), size=0.5) + 
       geom_line(aes(time, predicted), colour = "red") + facet_wrap_paginate(~ cs, ncol=2, nrow = 3,page=i, scales="free") + theme_light()

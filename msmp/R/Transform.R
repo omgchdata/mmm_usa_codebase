@@ -23,6 +23,7 @@
 # Julia Liu     2022-05-16 : made a change to mc transformation. Now it uses the the data between BeginDate 
 #                            and EndDate; and it records all the mc parameters for both 
 #                            right hand side and left hand side. 
+# Julia Liu     2022-05-23 : made a change to if and else if
 ##############################################################################################################
 
 library(compiler)
@@ -846,49 +847,38 @@ Transform = function(obj, print=TRUE) {
         data_vector_transform <- list()
         if (type[j] == "ADSTOCK"){
           data_vector_transform <- AdStockPD(data_vector, spec$Decay[i], spec$Period[i])
-        }
-        if (type[j] == "ADSTOCKV2"){
+        } else if (type[j] == "ADSTOCKV2"){
           data_vector_transform <- adstock(data_vector, spec$Decay[i])
-        }
-        if (type[j] == "ADSTOCKV3"){
+        } else if (type[j] == "ADSTOCKV3"){
           data_vector_transform <- adstockv3(data_vector, spec$Decay[i], spec$Peak[i], spec$Length[i])
-        }
-        if (type[j] == "ADSTOCKG"){
+        } else if (type[j] == "ADSTOCKG"){
           data_vector_transform <- 
             AdstockGamma(data_vector, decay=spec$Decay[i], peak=spec$Peak[i], spred=spec$Spred[i], period=spec$Period[i])
-        }
-        if (type[j] == "ADR"){
+        } else if (type[j] == "ADR"){
           if(is.null(fit_curves)) {
             stop("Please make sure you have fit curves (mod_obj$fit_curves) for adr transformation. \n")
           } else {
             data_vector_transform <- adr(data_vector, fit_curves, c(spec$Effective[i], spec$Recency[i], spec$Period[i], spec$Decay[i]))
           }
-        }
-        if (type[j] == "ABC"){
-          data_vector_transform <- abcNew(data_vector, 1, spec$B[i], spec$C[i])
-        }
-        if (type[j] == "ATAN") {
-          if(!is.na(spec$Scale[i]) & is.numeric(spec$Scale[i])) {
-            data_vector_transform <- atan(data_vector* spec$Scale[i])
-          } else {
-            stop("you need to specify Scale for variable", spec$Orig_Variable[i], "\n")
-            #data_vector_transform <- atan(data_vector)
-          }
-        }
-        if (type[j] == "LAG") {
+        } else if (type[j] == "ABC"){
+            data_vector_transform <- abcNew(data_vector, 1, spec$B[i], spec$C[i])
+        } else if (type[j] == "ATAN") {
+            if(!is.na(spec$Scale[i]) & is.numeric(spec$Scale[i])) {
+              data_vector_transform <- atan(data_vector* spec$Scale[i])
+            } else {
+              stop("you need to specify Scale for variable", spec$Orig_Variable[i], "\n")
+              #data_vector_transform <- atan(data_vector)
+            }
+        } else if (type[j] == "LAG") {
           data_vector_transform <- lag(data_vector, spec$Lag[i], default = 0)
-        }
-        if (type[j] == "LOG") {
+        } else if (type[j] == "LOG") {
           data_vector_transform <- log(data_vector*spec$Scale[i] + 1)
-        }
-        if (type[j] == "POLY") {
+        } else if (type[j] == "POLY") {
           data_vector_transform <- myPoly(data_vector, spec$Alpha[i])
-        }
-        if (type[j] == "MA") {
+        } else if (type[j] == "MA") {
           data_vector_transform <- rollmean(data_vector, spec$Window[i], align="right", fill=NA)
           data_vector_transform[which(is.na(data_vector_transform))] <- data_vector[which(is.na(data_vector_transform))]
-        }
-        if (type[j] == "MC") {
+        } else if (type[j] == "MC") {
           #data_vector_transform <- scale(data_vector)
           #scl <- attr(data_vector_transform, "scaled:scale")
           #cen <- attr(data_vector_transform, "scaled:center")
@@ -896,22 +886,19 @@ Transform = function(obj, print=TRUE) {
           scl <- sd(data_vector[mod_period])
           cen <- mean(data_vector[mod_period])
           data_vector_transform <- (data_vector-cen)/scl
-        }
-        if (type[j] == "STEIN") {
+        } else if (type[j] == "STEIN") {
           data_vector_transform <- shrinker(data_vector, bw=spec$Window[i], trim=spec$Trim[i])
-        }
-        if (type[j] == "CPT") {
+        } else if (type[j] == "CPT") {
           data_vector_transform <-
             cpt.meanvar(data_vector, minseglen = 6, penalty = "CROPS", pen.value = c(0, 100), method = "PELT")
-        }
-        if (type[j] == "POWER") {
+        } else if (type[j] == "POWER") {
           data_vector_transform <- (data_vector)^spec$Power[i]
-        }
-        if (type[j] == "LOGNORMAL") {
+        } else if (type[j] == "LOGNORMAL") {
           data_vector_transform <- my_lognormal(data_vector, spec$meanlog[i], spec$sdlog[i])
-        }
-        if (type[j] == "NONE") {
+        } else if (type[j] == "NONE") {
           data_vector_transform <- data_vector
+        } else {
+          stop("TransformType ", type[j], "not found. \n")
         }
         data_vector <- data_vector_transform
       }
@@ -971,60 +958,45 @@ Transform_panel = function(obj, print=TRUE, par_bypanel=FALSE) {
           data_vector_transform <- list()
           if (type[j] == "ADSTOCK"){
             data_vector_transform <- AdStockPD(data_vector, spec$Decay[i], spec$Period[i])
-          }
-          if (type[j] == "ADSTOCKV2"){
+          } else if (type[j] == "ADSTOCKV2"){
             data_vector_transform <- adstock(data_vector, spec$Decay[i])
-          }
-          if (type[j] == "ADSTOCKV3"){
+          } else if (type[j] == "ADSTOCKV3"){
             data_vector_transform <- adstockv3(data_vector, spec$Decay[i], spec$Peak[i], spec$Length[i])
-          }
-          if (type[j] == "ADSTOCKG"){
+          } else if (type[j] == "ADSTOCKG"){
             data_vector_transform <- 
               AdstockGamma(data_vector, decay=spec$Decay[i], peak=spec$Peak[i], spred=spec$Spred[i], period=spec$Period[i],print=print)
-          }
-          if (type[j] == "ADR"){
+          } else if (type[j] == "ADR"){
             data_vector_transform <- adr(data_vector, fit_curves, c(spec$Effective[i], spec$Recency[i], spec$Period[i], spec$Decay[i]))
-          }
-          if (type[j] == "ABC"){
+          } else if (type[j] == "ABC"){
             data_vector_transform <- abcNew(data_vector, 1, spec$B[i], spec$C[i])
-          }
-          if (type[j] == "ATAN") {
+          } else if (type[j] == "ATAN") {
             data_vector_transform <- atan(data_vector * spec$Scale[i])
-          }
-          if (type[j] == "LAG") {
+          } else if (type[j] == "LAG") {
             data_vector_transform <- lag(data_vector, spec$Lag[i], default = 0)
-          }
-          if (type[j] == "LOG") {
+          } else if (type[j] == "LOG") {
             data_vector_transform <- log(data_vector*spec$Scale[i] + 1)
-          }
-          if (type[j] == "POLY") {
+          } else if (type[j] == "POLY") {
             data_vector_transform <- myPoly(data_vector, spec$Alpha[i])
-          }
-          if (type[j] == "MA") {
+          } else if (type[j] == "MA") {
             data_vector_transform <- rollmean(data_vector, spec$Window[i], align="right", fill=NA)
             data_vector_transform[which(is.na(data_vector_transform))] <- data_vector[which(is.na(data_vector_transform))]
-          }
-          if (type[j] == "MC") {
-            #data_vector_transform <- scale(data_vector)
-            #scl <- attr(data_vector_transform, "scaled:scale")
-            #cen <- attr(data_vector_transform, "scaled:center")
+          } else if (type[j] == "MC") {
+
             mod_period <- x[[obj$Time]] >= obj$BeginDate & x[[obj$Time]] <= obj$EndDate
             scl <- sd(data_vector[mod_period])
             cen <- mean(data_vector[mod_period])
             data_vector_transform <- (data_vector-cen)/scl
-          }
-          if (type[j] == "STEIN") {
+          } else if (type[j] == "STEIN") {
             data_vector_transform <- shrinker(data_vector, bw=spec$Window[i], trim=spec$Trim[i])
-          }
-          if (type[j] == "CPT") {
+          } else if (type[j] == "CPT") {
             data_vector_transform <-
               cpt.meanvar(data_vector, minseglen = 6, penalty = "CROPS", pen.value = c(0, 100), method = "PELT")
-          }
-          if (type[j] == "POWER") {
+          } else if (type[j] == "POWER") {
             data_vector_transform <- (data_vector)^spec$Power[i]
-          }
-          if (type[j] == "NONE") {
+          } else if (type[j] == "NONE") {
             data_vector_transform <- data_vector
+          } else {
+            stop("TransformType ", type[j], "not found. \n")
           }
           data_vector <- data_vector_transform
         }
