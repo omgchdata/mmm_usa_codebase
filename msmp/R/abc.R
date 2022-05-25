@@ -1,3 +1,7 @@
+#######################################################
+# This R code defines various versions of abc function
+# and their corresponding first and second derivatives
+#######################################################
 
 #####################
 # ABC function
@@ -9,6 +13,11 @@ abc <- function(x, a, b, c) {
 
 abc_1000 <- function(x, a, b, c) {
   d <- a/(1+b*(x/1000)^c)
+  return(d)
+}
+
+abcNew <- function(x, a, b, c) {
+  d <- a/(1+(x/b)^c)
   return(d)
 }
 
@@ -25,6 +34,11 @@ dabc_1000 <- function(x, a, b, c) {
   return(d)
 }
 
+dabcNew <- function(x, a, b, c) {
+  d <- (-a*c/b)*(x/b)^(c-1)/((1+(x/b)^c)^2)
+  return(d)
+}
+
 ############################
 # 2nd derivative of ABC function
 ############################
@@ -34,8 +48,6 @@ ddabc <- function(x, a, b, c) {
   d <- up/down
   return(d)
 }
-
-# comment
 
 
 

@@ -94,6 +94,7 @@ source(paste(code_dir, "msmp_setup.R", sep = ""))
 source(paste(code_dir, "Check_Data.R", sep = ""))
 source(paste(code_dir, "Transform.R", sep = ""))
 source(paste(code_dir, "Run_Model.R", sep = ""))
+source(paste(code_dir, "Gen_EB_Panel.R", sep = ""))
 source(paste(code_dir, "Run_Model_Panel.R", sep = ""))
 source(paste(code_dir, "my_bayes.R", sep = ""))
 source(paste(code_dir, "MAPE.R", sep = ""))
@@ -103,7 +104,7 @@ source(paste(code_dir, "Decomp_v2.R", sep = ""))
 source(paste(code_dir, "DueToChart.R", sep = ""))
 source(paste(code_dir, "responsecurve.R", sep = ""))
 source(paste(code_dir, "decomp_summary_panel.R", sep = ""))
-source(paste(code_dir, "decomp_summary_temp.R", sep = ""))
+
 
 ```
 
@@ -115,7 +116,7 @@ These lines define the model name and project directory. In most of the cases, t
 # please edit these lines to define the path to the project folder.
 ProjectName <-  "msmp_panel_example"            # the name of the subfolder that contains the model project
 OutDir <- "output"
-RootDirectory <- "C:/Users/julia.liu/OneDrive - OneWorkplace/Documents/MyWork/msmp/doc/"
+RootDirectory <- "//nyccentral/Annalect/BrandScience/msmp/doc/"
 ProjectDirectory <- paste(RootDirectory, ProjectName, "/", sep="")   # this is the full path of the project
 ```
 
@@ -219,8 +220,11 @@ This model only has 10 panels and 3 randomized terms, and we would like a soluti
 4. Given the reality, we need to develope a solution that's practical, runs efficiently, and can scale to complex multilevel models that allows varied coefficients by geo locations while still giving modelers some control to regulize unreliable coefficients for panels that has sparse data. To meet these needs, I have developed a 2-steps approach and this approach is implemented in Run_Model_Panel.R.  On a very high level, this function first calculates/data mine the priors from a model result that does not have prior influence. Then it run the final Bayesian regression using the priors. Here is how you run the function:
 
 ```{r model}
-print("Run model...")
-mod_obj <- Run_Model_Panel(mod_obj)
+print("Calculate Empirical Bayesian Priors:")
+eb_priors <- Gen_EB_Panel(mod_obj)
+print("Run hierarchical bayesian model using the emperical priors:")
+mod_obj <- Run_Model_Panel(obj=mod_obj, priors=eb_priors)
+
 ```
 
 The Run_Model_Panel function consists of 3 steps:
@@ -263,9 +267,9 @@ knitr::kable(mod_obj$Model$coefficients)
 
 You can use function scatterhist() to check how the final bayesian esiimates compared to the interaction model in step 1. For example,  
 
-```{r model_scatterhist}
-with(mod_obj$Model$freq_priors_bayes[mod_obj$Model$freq_priors_bayes$Variable=="digital_display_t", ], scatterhist(estimate_freq, estimate_bayes, xlab="frequentist", ylab="Emperical Bayes"))
-```
+#```{r model_scatterhist}
+#with(mod_obj$Model$freq_priors_bayes[mod_obj$Model$freq_priors_bayes$Variable=="digital_display_t", ], scatterhist(estimate_freq, estimate_bayes, xlab="frequentist", ylab="Emperical Bayes"))
+#```
 
  To check actual vs predicted at the panel level,
 ```{r actpred_dma}
@@ -307,11 +311,6 @@ ggplotly(mod_obj$decomp_chart_stackedarea)
 
 ```
 
-To calculate due-to, you can use function DueToChart() function as follows:
-```{r dueto}
-dueto <- DueToChart(mod_obj$Decomposition, mod_obj$spec)
-ggplotly(dueto$chart)
-```
 
 
 ### Simulation
@@ -352,7 +351,7 @@ I also like to output other useful model results into a excel file to share with
 save(mod_obj, file=ModObjectFile)
 
 allresultlist <- list(mod_obj$Model$Priors, mod_obj$Model$coefficients,mod_obj$Model$act_pred, mod_obj$Model$result_all, mod_obj$Decomposition_panel, mod_obj$Decomposition)
-write.xlsx(allresultlist, ModelAllResultFile, asTable = FALSE, sheetName=c("Priors", "Coefficients","Act vs Pred","Diagnostics","Decomps_panel", "Decomps_national"))
+write.xlsx(allresultlist, ModelAllResultFile, asTable = FALSE, sheetName=c("Priors", "Coefficients","Act vs Pred","Diagnostics","Decomps_panel", "Decomps_national"), overwrite = T)
 print("All done.")
 ```
 

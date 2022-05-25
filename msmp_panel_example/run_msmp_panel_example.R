@@ -10,18 +10,20 @@ library(plotly)
 #needs(data.table)
 #Define the server : pc or mac
 if (Sys.info()['sysname'] == "Darwin") {server <- "/Volumes"} else {server <- "//nyccentral"}
-code_dir <- "C:/Users/julia.liu/OneDrive - OneWorkplace/Documents/MyWork/an_ms_modelplatform/msmp/R/"
-
+#code_dir <- "C:/Users/julia.liu/OneDrive - OneWorkplace/Documents/MyWork/an_ms_modelplatform/msmp/R/"
+code_dir <- "//nyccentral/annalect/BrandScience/msmp/R/"
 source(paste(code_dir, "msmp_setup.R", sep = ""))
 source(paste(code_dir, "Check_Data.R", sep = ""))
 source(paste(code_dir, "Transform.R", sep = ""))
 source(paste(code_dir, "Run_Model.R", sep = ""))
+source(paste(code_dir, "Gen_EB_Panel.R", sep = ""))
 source(paste(code_dir, "Run_Model_Panel.R", sep = ""))
 source(paste(code_dir, "my_bayes.R", sep = ""))
 source(paste(code_dir, "MAPE.R", sep = ""))
 source(paste(code_dir, "act_pred.R", sep = ""))
 source(paste(code_dir, "scatterhist.R", sep = ""))
-source(paste(code_dir, "Decomp_v2.R", sep = ""))
+source(paste(code_dir, "Decomp_working.R", sep = ""))
+source(paste(code_dir, "unscale.R", sep = ""))
 source(paste(code_dir, "DueToChart.R", sep = ""))
 source(paste(code_dir, "responsecurve.R", sep = ""))
 source(paste(code_dir, "decomp_summary_panel.R", sep = ""))
@@ -30,7 +32,8 @@ source(paste(code_dir, "decomp_summary_panel.R", sep = ""))
 # please edit these lines to define the path to the project folder.
 ProjectName <-  "msmp_panel_example"            # the name of the subfolder that contains the model project
 OutDir <- "output"
-RootDirectory <- "C:/Users/julia.liu/OneDrive - OneWorkplace/Documents/MyWork/an_ms_modelplatform/"
+#RootDirectory <- "C:/Users/julia.liu/OneDrive - OneWorkplace/Documents/MyWork/an_ms_modelplatform/"
+RootDirectory <- "//nyccentral/Annalect/BrandScience/msmp/doc/"
 ProjectDirectory <- paste(RootDirectory, ProjectName, "/", sep="")   # this is the full path of the project
 
 ###################
@@ -87,25 +90,26 @@ mod_obj$data <- mod_obj$data[mod_obj$data[[mod_obj$Time]] >= mod_obj$BeginDate &
 ########################
 # Run model
 ########################
-print("Run model...")
-mod_obj <- Run_Model_Panel(mod_obj)
-#with(mod_obj$Model$freq_priors_bayes[mod_obj$Model$freq_priors_bayes$Variable=="search_t", ], scatterhist(estimate_freq, estimate_bayes, xlab="frequentist", ylab="HB"))
+needs(ggforce)
+print("Calculate Empirical Bayesian Priors:")
+eb_priors <- Gen_EB_Panel(mod_obj)
 
-write_csv(mod_obj$Model$Priors, PriorFile)
-write_csv(mod_obj$Model$coefficients, CoefficientsFile)
+
+print("Run hierarchical bayesian model using the emperical priors:")
+mod_obj <- Run_Model_Panel(mod_obj, priors=eb_priors)
+
+# actual vs predicted by regions
+print(mod_obj$Model$act_pred_dma_chart[[1]])
+print(mod_obj$Model$act_pred_dma_chart[[2]])
+
+# actual vs predicted at the aggregated level
+print(mod_obj$Model$act_pred_chart)
+
 ######################
 # Decomp calculation
 ######################
-mod_obj <- Decomp(obj = mod_obj, incl_spent = F)
-write_csv(mod_obj$Decomposition_panel, DecompFile)
-
-#dueto <- DueToChart(mod_obj$Decomposition, 
-#                    mod_obj$spec, 
-#                    mod_obj$SimStart, 
-#                    mod_obj$SimEnd, 
-#                    mod_obj$SimStart-365, 
-#                    mod_obj$SimEnd-365)
-#ggplotly(dueto$chart)
+mod_obj <- Decomp_panel(obj = mod_obj, incl_spent = F, loop=T)
+#write_csv(mod_obj$Decomposition_panel, DecompFile)
 
 #decomp_sum <- panel_decomp(mod_obj)
 #write_csv(decomp_sum, DecompSumFile)
@@ -120,6 +124,6 @@ write_csv(mod_obj$Decomposition_panel, DecompFile)
 save(mod_obj, file=ModObjectFile)
 
 allresultlist <- list(mod_obj$Model$Priors, mod_obj$Model$coefficients,mod_obj$Model$act_pred, mod_obj$Model$result_all, mod_obj$Decomposition_panel, mod_obj$Decomposition)
-write.xlsx(allresultlist, ModelAllResultFile, asTable = FALSE, sheetName=c("Priors", "Coefficients","Act vs Pred","Diagnostics","Decomps_panel", "Decomps_national"))
+write.xlsx(allresultlist, ModelAllResultFile, asTable = FALSE, sheetName=c("Priors", "Coefficients","Act vs Pred","Diagnostics","Decomps_panel", "Decomps_national"), overwrite = T)
 print("All done.")
 
