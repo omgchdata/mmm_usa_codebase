@@ -191,17 +191,17 @@ Decomp_panel <- function(obj, incl_spent = FALSE, loop = FALSE) {
   
   obj$Decomposition_panel <- do.call("rbind", dcmp)
   
-  if(0) {
+  
   # create national level decomposition 
   obj$Decomposition_panel$time <- obj$Decomposition_panel[[obj$Time]]
   d_nat <- obj$Decomposition_panel %>% group_by(time) %>% summarise_if(is.numeric, sum, na.rm = TRUE)
   names(d_nat)[1] <- obj$Time
-  d_nat[[obj$spec$Orig_Variable[tolower(obj$spec$Variable_Type)=="dependent"] ]]<- NULL
-  d_nat$predicted <- NULL
+  #d_nat[[obj$spec$Orig_Variable[tolower(obj$spec$Variable_Type)=="dependent"] ]]<- NULL
+  #d_nat$predicted <- NULL
   d_nat$time <- NULL
   obj$Decomposition_panel$time <- NULL
   obj$Decomposition <- d_nat
-  }
+  
   return(obj)
 }
 
