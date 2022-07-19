@@ -13,6 +13,7 @@
 #                         crosssection : the panel field 
 #                         time : the time field
 # 2021-10-20  Julia Liu : fixed an error with fun=="mean"
+# 2022-07-06  Chris Cornell : added month2day, day2week, and month2week with approval from Julia
 #################################################
 week2day <- function(df, fun="sum") {
   names(df)[1] = "date_tmp"
@@ -71,14 +72,52 @@ week2month_panel <- function(df, crosssection, time, fun="sum") {
   output <- do.call("rbind", output)
   return(output)
 }
-#month2day <- function(df) {
-#  names(df)[1] = "date"
-#  df <- df[order(df$date), ]
-#  vname <- names(df)
-#  
-#  nday_lastmonth <- as.numeric(ceiling_date(as.Date(df$date[nrow(df)]), "month") - as.Date(df$date[nrow(df)]))
 
-#  df2 <- data.frame(seq.Date(as.Date(df$date[1]), as.Date(df$date[nrow(df)]+nday_lastmonth-1), "day"))
-#  names(df2) = "date"
-#}
+# NEW FUNCTIONS as of 2022-07-06
 
+month2day <- function(df, fun="sum") {
+	library(tidyverse); library(lubridate)
+	names(df)[1] = "date_tmp"
+	df <- df[order(df$date_tmp), ]
+	vname <- names(df)
+	min_day   <- floor_date(  min(df$date_tmp),"month")
+	max_day   <- ceiling_date(max(df$date_tmp),"month") %m-% days(1)
+	df2 <- data.frame(seq.Date(min_day, max_day, "day"))
+	names(df2) = "day"
+	df2$date_tmp <- floor_date(df2$day,"month")
+	df2$date_tmp <- as.Date(df2$date_tmp)
+	df2$DIM      <- days_in_month(df2$date_tmp)
+	df3          <- left_join(df2,df,by="date_tmp")
+	df3          <- select(df3, -c("date_tmp","DIM"))
+	names(df3)[1] <- "date_tmp"
+	for (i in 2:ncol(df)) {
+		if(fun == "sum") {
+			df3[[vname[i] ]] <- df3[[vname[i] ]]/df2$DIM
+		}
+	}
+	return(df3)
+}
+
+day2week <- function(df, fun="sum") {
+	library(tidyverse); library(lubridate)
+	names(df)[1] = "date_tmp"
+	df <- df[order(df$date_tmp), ]
+	vname <- names(df)
+	df$Date = as.Date(cut(df$date_tmp, breaks = "week", start.on.monday=TRUE))
+	if(fun=="mean") {
+		df2 <- select(df, -c("date_tmp"))
+		df3 <- df2 %>% group_by(Date) %>% summarize_all(mean)
+		names(df3)[1] <- "date_tmp"
+	} else {
+		df2 <- select(df, -c("date_tmp"))
+		df3 <- df2 %>% group_by(Date) %>% summarize_all(sum)
+		names(df3)[1] <- "date_tmp"
+	}
+	return(df3)
+}
+
+month2week <- function(df, fun="sum") {
+	df2 <- month2day(df, fun=fun)
+	df3 <- day2week(df2, fun=fun)
+	return(df3)
+}

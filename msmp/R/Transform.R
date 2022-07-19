@@ -24,6 +24,8 @@
 #                            and EndDate; and it records all the mc parameters for both 
 #                            right hand side and left hand side. 
 # Julia Liu     2022-05-23 : made a change to if and else if
+# Julia Liu     2022-06-16 : added a new transformation type "adrNew"
+# Julia Liu     2022-07-15 : added capability of handling multiple reach curves for different variables.
 ##############################################################################################################
 
 library(compiler)
@@ -860,6 +862,13 @@ Transform = function(obj, print=TRUE) {
           } else {
             data_vector_transform <- adr(data_vector, fit_curves, c(spec$Effective[i], spec$Recency[i], spec$Period[i], spec$Decay[i]))
           }
+        } else if (type[j] == "ADRNEW"){
+          #data_vector_transform <- adrnew(data_vector, fit_curves, E=spec$Effective[i], R=spec$Recency[i], P=spec$Period[i], D=spec$Decay[i])
+          if("Reach_Curve" %in% names(spec)) {
+            data_vector_transform <- adrnew(data_vector, fit_curves[[spec$Reach_Curve[i]]], E=spec$Effective[i], R=spec$Recency[i], P=spec$Period[i], D=spec$Decay[i])
+          } else {
+            data_vector_transform <- adrnew(data_vector, fit_curves, E=spec$Effective[i], R=spec$Recency[i], P=spec$Period[i], D=spec$Decay[i])
+          }
         } else if (type[j] == "ABC"){
             data_vector_transform <- abcNew(data_vector, 1, spec$B[i], spec$C[i])
         } else if (type[j] == "ATAN") {
@@ -967,6 +976,12 @@ Transform_panel = function(obj, print=TRUE, par_bypanel=FALSE) {
               AdstockGamma(data_vector, decay=spec$Decay[i], peak=spec$Peak[i], spred=spec$Spred[i], period=spec$Period[i],print=print)
           } else if (type[j] == "ADR"){
             data_vector_transform <- adr(data_vector, fit_curves, c(spec$Effective[i], spec$Recency[i], spec$Period[i], spec$Decay[i]))
+          } else if (type[j] == "ADRNEW"){
+            if("Reach_Curve" %in% names(spec)) {
+              data_vector_transform <- adrnew(data_vector, fit_curves[[spec$Reach_Curve[i]]], E=spec$Effective[i], R=spec$Recency[i], P=spec$Period[i], D=spec$Decay[i])
+            } else {
+              data_vector_transform <- adrnew(data_vector, fit_curves, E=spec$Effective[i], R=spec$Recency[i], P=spec$Period[i], D=spec$Decay[i])
+            }
           } else if (type[j] == "ABC"){
             data_vector_transform <- abcNew(data_vector, 1, spec$B[i], spec$C[i])
           } else if (type[j] == "ATAN") {

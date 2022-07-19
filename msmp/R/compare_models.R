@@ -1,5 +1,10 @@
-
-
+#################################################
+# This function compares 2 models. 
+# Inputs : the 2 msmp model objects
+# output : comparison of the 2 model's coefficients
+#          actual vs predicted 
+#          decomposition summary
+################################################
 compare_models = function(obj1, obj2) {
   
   DepVar <- obj1$spec$Trans_Variable[obj1$spec$Variable_Type == "Dependent"]

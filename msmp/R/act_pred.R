@@ -3,10 +3,8 @@
 # this function creates actual vs predicted in a dataframe given the model object
 # input : obj - the model object that has coefficients and data
 # this function returns a dataframe that contains the acctual vs predicted
-# update notes:
-# Julia Liu 2021/10/11 : handles market share model
 #############################################################
-act_pred <- function( obj, share = NULL ) {
+act_pred <- function( obj ) {
   spec <- obj$spec
   x = obj$data
   full_b <- obj$Model$coefficients
@@ -24,7 +22,6 @@ act_pred <- function( obj, share = NULL ) {
   IV <- spec$Trans_Variable[spec$Include == 1 & tolower(spec$Variable_Type) != "dependent"]
   betaIV <- paste0("beta_", IV)
   depvar <- spec$Trans_Variable[tolower(spec$Variable_Type) =="dependent"]
-  depvar_scale <- spec$Scale[tolower(spec$Variable_Type) =="dependent"]
   depvar_orig <- spec$Orig_Variable[tolower(spec$Variable_Type) =="dependent"]
   for (i in 1:length(IV)) {
     tmp <- x[[betaIV[i] ]] * x[[ IV[i] ]]
@@ -41,19 +38,26 @@ act_pred <- function( obj, share = NULL ) {
   }
   
   if(tolower(spec$Transform[tolower(spec$Variable_Type) == "dependent"]) == "y" & tolower(spec$TransformType[tolower(spec$Variable_Type) == "dependent"]) == "log") {
-    x$predicted <- (exp(x$predicted)-1)/depvar_scale
+    x$predicted <- exp(x$predicted)-1
   }
   
-
-  act_pred_df <- x[, c(obj$CS, obj$Time, depvar_orig, "predicted")]
-  if( is.null(share)) {
-    act_pred_df <- x[, c(obj$CS, obj$Time, depvar_orig, "predicted")]
-    
+  if(tolower(obj$ModelForm) == "tiv") {
+    if(obj$ModelForm %in% names(x) ) {
+      x$sales <- x[[depvar_orig]]/100 * x[[obj$ModelForm]]
+      x$sales_predicted <- x$predicted/100 * x[[obj$ModelForm]]
+    } else {
+      stop("The TIV variable ", obj$ModelForm, "is not in the data set. \n")
+    }
+    act_pred_df <- x[, c(obj$CS, obj$Time, depvar_orig, "predicted", "sales", "sales_predicted")]
   } else {
-    act_pred_df <- x[, c(obj$CS, obj$Time, depvar_orig, "predicted", share)]
-    act_pred_df[[depvar_orig]] <- act_pred_df[[depvar_orig]] * act_pred_df[[share]]
-    act_pred_df$predicted <- act_pred_df$predicted * act_pred_df[[share]]
+    act_pred_df <- x[, c(obj$CS, obj$Time, depvar_orig, "predicted")]
   }
-  act_pred_df$residual <- act_pred_df[[depvar_orig]] - act_pred_df$predicted
+  #act_pred_df <- x[, c(obj$CS, obj$Time, depvar_orig, "predicted", "sales", "sales_predicted")]
+  act_pred_df$residual <- x[[depvar_orig]] - x$predicted
+  
+  if(depvar != depvar_orig) {
+    act_pred_df[[depvar]] <- x[[depvar]]
+    act_pred_df[[paste(depvar, "predicted", sep="_")]] <- obj$Model$fitted_value
+  }
   return(act_pred_df)
 }

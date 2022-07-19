@@ -1,0 +1,6 @@
+Orig_Variable,Trans_Variable,AggregateVariable,Variable_Type,Include,VaryBy,Transform,TransformType,Lag,Scale,Effective,Recency,Decay,Period,Peak,Length,Window,Prior_Mean,Prior_SD,Simulate,Spent_Variable,Reach_Curve
+sales,sales,KPI,Dependent,1,None,N,None,,1,,,0,0,,,,0,1.00E+12,N,,
+Intercept,Intercept,Base,Base,1,None,N,None,,1,,,0,0,,,,0,1.00E+12,N,,
+TV_GRPs,TV_GRPs_t,TV,Marketing,1,None,Y,adrnew,,1,2,1,0.1;0.2;0.3,35,,,,0,1.00E+12,Y,TV_spend,tv
+DigitalDisplay_Impressions,DigitalDisplay_Impressions_t,Display,Marketing,1,None,Y,adstockv3_log,,1.00E-07,,,0.8;0.9,14,1,600,,0,1.00E+12,Y,DigitalDisplay_spend,
+search,search_t,Search,Marketing,1,None,Y,adstockv3_log,,0.0004;0.0005,,,0.9,,1;2,600,,0,1.00E+12,Y,search_spend,
