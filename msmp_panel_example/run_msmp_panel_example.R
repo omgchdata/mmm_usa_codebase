@@ -118,12 +118,23 @@ decomp_sum_predicted <- decomp_summary_panel(df= mod_obj$Decomposition_panel,
 # Simulation to get response curve
 ####################
 mod_obj <- responsecurve_panel(obj = mod_obj, showPlot=FALSE )
-
+if(is.null(mod_obj$kpi_spent)) {
+  mod_obj$kpi_spent <- data.frame(Variables="", kpi="", spent="",	kpi_per_spent="",	mkpi_per_spent="",	ratio="")
+}
 # let's save the model object to a RData file. This object can be loaded later at post-model calculation:
 # unnest, combine response curves and calculate abc.
 save(mod_obj, file=ModObjectFile)
 
-allresultlist <- list(mod_obj$Model$Priors, mod_obj$Model$coefficients,mod_obj$Model$act_pred, mod_obj$Model$result_all, mod_obj$Decomposition_panel, decomp_sum_predicted, mod_obj$Decomposition)
-write.xlsx(allresultlist, ModelAllResultFile, asTable = FALSE, sheetName=c("Priors", "Coefficients","Act vs Pred","Diagnostics","Decomps_panel", "contriubtion panel", "Decomps_national"), overwrite = T)
+allresultlist <- list(mod_obj$Model$Priors, 
+                      mod_obj$Model$coefficients,
+                      mod_obj$Model$act_pred, 
+                      mod_obj$Model$act_pred_national,
+                      mod_obj$Model$result_all, 
+                      mod_obj$Decomposition_panel, 
+                      decomp_sum_predicted, 
+                      mod_obj$Decomposition)
+
+write.xlsx(allresultlist, ModelAllResultFile, asTable = FALSE, 
+           sheetName=c("Priors", "Coefficients","Act vs Pred Panel","Act vs Pred national","Diagnostics","Decomps_panel", "pct contriubtion panel", "Decomps_national"), overwrite = T)
 print("All done.")
 

@@ -18,8 +18,11 @@
 # Julia Liu 2020-11-12: added decomp (a logic) argument. 
 # Julia Liu 2022-05-16: added the predict_panel_msmp function
 #                       reverse mc (mean-centering) if the dep var is mean centered. 
+# Julia Liu 2022-07-21: added argument "transform"
+#                       defaults to TRUE : transform the data according to the spec in model object
+#                       when set to FALSE: the data is already transformed, skip the Transform step.
 ######################################################################
-predict_msmp <- function(obj, data, decomp=F) {
+predict_msmp <- function(obj, data, decomp=F, transform=T) {
 
   spec <- obj$spec[obj$spec$Include == 1, ]
   depvar <- spec$Trans_Variable[tolower(spec$Variable_Type) == "dependent"]
@@ -76,7 +79,7 @@ predict_msmp <- function(obj, data, decomp=F) {
 }
 
 
-predict_panel_msmp <- function(obj, data, decomp=F) {
+predict_panel_msmp <- function(obj, data, decomp=F, transform=T) {
   cs <- unique(obj$Model$coefficients[[obj$CS]])
   
   # loop through panels and do forecasting one panel at a time
@@ -87,7 +90,7 @@ predict_panel_msmp <- function(obj, data, decomp=F) {
     obj2$data <- obj2$data[obj2$data[[obj2$CS]]== cs[i],]
     obj2$Model$coefficients <- obj2$Model$coefficients[obj2$Model$coefficients[[obj2$CS]]==cs[i],]
     data_tmp <- data[data[[obj2$CS]] == cs[i],]
-    pred[[i]] <- predict_msmp(obj = obj2, data=data_tmp )
+    pred[[i]] <- predict_msmp(obj = obj2, data=data_tmp ,transform=transform)
     pred[[i]][[obj2$CS]] <- cs[i]
   }
   

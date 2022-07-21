@@ -139,7 +139,7 @@ if(!file.exists(output_folder)) {
 
 # these are the recommended output files. Users may add more to the list. 
 RCFile <- paste(output_folder,"/", ProjectName, "_ResponseCurve.csv", sep="")
-ModObjectFile <- paste(output_folder, "/", ProjectName, "_ModObj.RData", sep="")
+ModObjectFile <- paste(output_folder, "/", ProjectName, ".RData", sep="")
 ModelAllResultFile <- paste(output_folder, "/", ProjectName, "_result_workbook.xlsx", sep="")
 
 # read input files
@@ -298,7 +298,7 @@ To decomposition of the panel model, you use the Decomp(). This function adds 4 
 To calculate due-to, you can use function DueToChart() function. 
 
 ``` {r decomp}
-mod_obj <- Decomp(obj = mod_obj, incl_spent = F)
+mod_obj <- Decomp_panel(obj = mod_obj, incl_spent = F)
 knitr::kable(head(mod_obj$Decomposition_panel))
 knitr::kable(head(mod_obj$Decomposition))
 ggplotly(mod_obj$decomp_chart_stackedarea_origvar)
@@ -319,6 +319,7 @@ decomp_sum_predicted <- decomp_summary_panel(df= mod_obj$Decomposition_panel,
                                    endDate = mod_obj$EndDate,
                                    dependentVar="predicted", 
                                    cs = mod_obj$CS)
+knitr::kable(head(decomp_sum_predicted))
 ```
 
 ### Simulation
@@ -338,12 +339,13 @@ This plot shows the response curve for video.
 ```{r responsecurve}
 mod_obj <- responsecurve_panel(obj = mod_obj, showPlot=FALSE )
 knitr::kable(head(mod_obj$ResponseCurve_panel))
-plot(mod_obj$ResponseCurve$Delta, mod_obj$ResponseCurve$rc_video, pch=20)
+
+plot(mod_obj$ResponseCurve$Delta, mod_obj$ResponseCurve$rc_search, pch=20)
 ```
 
 ### Calculate ABC
 
-This part is carried out by Channel Planner. 
+This part can be carried out by Channel Planner. 
 
 ### Optimization
 
@@ -365,9 +367,8 @@ print("All done.")
 
 ## Plan for new developments
 
-1. Decomposition for log-log model
 
-2. Variable splits. For example, split total TV into TV breaks by audience, and split digital display by platforms. 
+- Variable splits. For example, split total TV into TV breaks by audience, and split digital display by platforms. 
 
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

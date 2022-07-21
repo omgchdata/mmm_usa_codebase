@@ -27,8 +27,8 @@ source(paste(code_dir, "responsecurve.R", sep = ""))
 #source(paste(code_dir, "DueToChart.R", sep = ""))
 source(paste(code_dir, "unnestr3.0.R", sep = ""))
 source(paste(code_dir, "abc.R", sep = ""))
-source(paste(code_dir, "abc_onls.R", sep = ""))
 source(paste(code_dir, "fitABC.R", sep = ""))
+source(paste(code_dir, "predict_msmp.R", sep = ""))
 
 #######  define project directories ##############
 # please edit these lines to define the path to the project folder.
@@ -122,10 +122,10 @@ mod_obj <- responsecurve(obj = mod_obj, showPlot=T )
 #write_csv(mod_obj$ResponseCurve, RCFile)
 
 ##################
-# ABCs
+# fit abc curves on the response curves (that have spend information) to get a, b, and c
 ##################
-#mod_obj <- fitABC(mod_obj, showPlot=T)
-
+mod_obj <- fitABC(mod_obj, newABC = F,showPlot=T)
+print(mod_obj$abc)
 
 #################
 # save the results to an excel workbook and Rdata object
