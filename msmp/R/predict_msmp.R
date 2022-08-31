@@ -18,9 +18,10 @@
 # Julia Liu 2020-11-12: added decomp (a logic) argument. 
 # Julia Liu 2022-05-16: added the predict_panel_msmp function
 #                       reverse mc (mean-centering) if the dep var is mean centered. 
-# Julia Liu 2022-07-21: added argument "transform"
+# Julia Liu 2022-07-26: added argument "transform"
 #                       defaults to TRUE : transform the data according to the spec in model object
 #                       when set to FALSE: the data is already transformed, skip the Transform step.
+#                       
 ######################################################################
 predict_msmp <- function(obj, data, decomp=F, transform=T) {
 
@@ -51,7 +52,15 @@ predict_msmp <- function(obj, data, decomp=F, transform=T) {
   data <- data[order(data[[obj$Time]]), ]
   orig_data <- obj$data               # put aside the original model dataset 
   obj$data <- data
-  obj <- Transform(obj, print=F)  # transform  the variables
+  if(transform) {
+    obj <- Transform(obj, print=F)  # transform  the variables
+  } else {
+    for (i in 1:length(iv)) {
+      if( !(iv[i] %in% names(data))) {
+        stop(iv[i], " is not in the new dataset you have provided.")
+      }
+    }
+  }
   # create a new data dataframe 
   obj$new_data <- obj$data[, unique(c(obj$Time, depvar, spec$Orig_Variable, spec$Trans_Variable))]
   obj$data <- orig_data   # put back the original dataset

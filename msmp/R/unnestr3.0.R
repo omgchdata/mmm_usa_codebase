@@ -13,6 +13,9 @@
 #                    it defaults to FALSE. When the model link is split in the sub-model,
 #                    you can set it to TRUE to handle it.
 # Julia 2021-04-34 : fixed vlkup bug
+# Julia 2022-07-27 : added a new logical argument by_predicted to unnestr function.
+#                    defaults to FALSE. If set to TRUE, the unnesting is calculated using predicted, instead of actual.
+#
 #########################################################################
 load_nest <- function(submodel_name, root_dir) {
   # Check that the directory exists
@@ -50,7 +53,7 @@ rename <- function(x) {
 
 
 
-unnestr <- function(child, parent, submodel_number, split_var = FALSE) {
+unnestr <- function(child, parent, submodel_number, split_var = FALSE, by_predicted = FALSE) {
   num <- as.character(submodel_number)
   for (objects in c("child", "parent")) {
     eval(parse(text = gsub("x", objects, "names(x) <- str_to_lower(names(x))")))
@@ -64,6 +67,18 @@ unnestr <- function(child, parent, submodel_number, split_var = FALSE) {
     if (!(join %in% parent$spec$Trans_Variable)) {
       stop(gsub("num", num, "parent Submodel_Linknum does not correspond to a parent Trans_Variable"))
     }
+  }
+  
+  if("predicted" %in% names(child$decomposition)) {
+    predicted_child <- child$decomposition$predicted
+    child$decomposition$predicted = NULL
+  }
+  if("predicted" %in% names(parent$decomposition)) {
+    predicted_parent <- parent$decomposition$predicted
+    parent$decomposition$predicted <- NULL
+    predicted_exists = T
+  } else {
+    predicted_exists = F
   }
   
   name <- names(child$decomposition)
@@ -86,7 +101,11 @@ unnestr <- function(child, parent, submodel_number, split_var = FALSE) {
   
   
   #Calculate the share of the parent explained by the child
-  ratio <- parent$decomposition[names_parent2 %in% join] / child$decomposition[dep_var_child]
+  if(by_predicted) {
+    ratio <- parent$decomposition[names_parent2 %in% join] / predicted_child
+  } else {
+    ratio <- parent$decomposition[names_parent2 %in% join] / child$decomposition[dep_var_child]
+  }
   ratio[ratio == Inf] <- 0
   
   #Unnest everything
@@ -113,6 +132,11 @@ unnestr <- function(child, parent, submodel_number, split_var = FALSE) {
   parent$Decomposition_nested <- parent$decomposition
   parent$Decomposition <- new_parent
   parent$decomposition <- NULL
+  
+  if(predicted_exists) {
+    parent$Decomposition_nested$predicted <- predicted_parent
+    parent$Decomposition$predicted <- predicted_parent
+  }
   
   # Julia Liu 2020-06-09
   # Julia Liu 2021-04-23

@@ -1,9 +1,15 @@
 
+#########################################
+# This function "propose" empirical priors for all the random-effect variables (varyby).
+# 
+# 2022-08-15 Julia Liu : fixed a bug when right signed empirical priors can not be derived from the data/model
+#
+###################################################
 Gen_EB_Panel <- function(obj) {
 
   library(ggforce)
   Method="Bayes"
-  big_number <- 100000           # for difuse priors
+  big_number <- 100000           # for diffuse priors
   spec <- obj$spec
   x <- obj$data
   
@@ -91,6 +97,8 @@ Gen_EB_Panel <- function(obj) {
           if(is.nan(mean(tmp[tmp>0]))) {
             cat("The code is not able to find a emperical prior for", hb_var[j], "\n")
             cat("A diffuse prior is used. If you want an informative prior, you can override.\n")
+            priors$Prior_Mean[grep(hb_var[j], priors$Variables)] = 0
+            priors$Prior_SD[grep(hb_var[j], priors$Variables)] = big_number
           } else {
             priors$Prior_Mean[grep(hb_var[j], priors$Variables)] = mean(tmp[tmp>0])
           }
@@ -98,6 +106,8 @@ Gen_EB_Panel <- function(obj) {
           if(is.nan(mean(tmp[tmp<0]))) {
             cat("The code is not able to find a emperical prior for", hb_var[j], "\n")
             cat("A diffuse prior is used. If you want an informative prior, you can override.\n")
+            priors$Prior_Mean[grep(hb_var[j], priors$Variables)] = 0
+            priors$Prior_SD[grep(hb_var[j], priors$Variables)] = big_number
           } else {
             priors$Prior_Mean[grep(hb_var[j], priors$Variables)] = mean(tmp[tmp<0])
           }

@@ -14,6 +14,7 @@
 #                          then set the "priors" in Run_Model_Panel equal to the result of the Gen_EB_Panel.  
 #                          In this case, the Run_model_Panel will skip the 1st step of "learning" priors, and 
 #                          just ran the final model using the priors. 
+# 2022-08-15 Julia Liu : fixed a bug when right signed empirical priors can not be derived from the data/model
 #######################################
 
 Run_Model_Panel <- function(obj, priors = NULL, Method="Bayes") {
@@ -112,6 +113,8 @@ Run_Model_Panel <- function(obj, priors = NULL, Method="Bayes") {
         if(is.nan(mean(tmp[tmp>0]))) {
           cat("The code is not able to find a emperical prior for", hb_var[j], "\n")
           cat("A diffuse prior is used. If you want an informative prior, you can override.\n")
+          priors$Prior_Mean[grep(hb_var[j], priors$Variables)] = 0
+          priors$Prior_SD[grep(hb_var[j], priors$Variables)] = big_number
         } else {
           priors$Prior_Mean[grep(hb_var[j], priors$Variables)] = mean(tmp[tmp>0])
         }
@@ -119,6 +122,8 @@ Run_Model_Panel <- function(obj, priors = NULL, Method="Bayes") {
         if(is.nan(mean(tmp[tmp<0]))) {
           cat("The code is not able to find a emperical prior for", hb_var[j], "\n")
           cat("A diffuse prior is used. If you want an informative prior, you can override.\n")
+          priors$Prior_Mean[grep(hb_var[j], priors$Variables)] = 0
+          priors$Prior_SD[grep(hb_var[j], priors$Variables)] = big_number
         } else {
           priors$Prior_Mean[grep(hb_var[j], priors$Variables)] = mean(tmp[tmp<0])
         }
