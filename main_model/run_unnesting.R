@@ -4,6 +4,7 @@ library(tidyverse)
 code_dir <- "//nyccentral/Annalect/BrandScience/msmp/R/"
 
 source(paste(code_dir, "unnestr3.0.R", sep = ""))
+source(paste(code_dir, "decomp_summary.R", sep = ""))
 
 RootDirectory <- "//nyccentral/Annalect/BrandScience/msmp/doc/"
 ##### UNNESTING SECTION 1: LOADING MODELS #####

@@ -7,6 +7,8 @@ library(tidyverse)
 library(lubridate)
 library(openxlsx)
 library(readxl)
+library(onls)
+library(plotly)
 #needs(car, lmtest, tidyverse, lubridate, stringr, onls)
 #Define the server : pc or mac
 if (Sys.info()['sysname'] == "Darwin") {server <- "/Volumes"} else {server <- "//nyccentral"}
@@ -19,16 +21,17 @@ source(paste(code_dir, "Check_Data.R", sep = ""))
 source(paste(code_dir, "adrnew.R", sep = ""))
 source(paste(code_dir, "Transform.R", sep = ""))
 source(paste(code_dir, "act_pred.R", sep = ""))
-source(paste(code_dir, "Decomp_working.R", sep = ""))
+source(paste(code_dir, "Decomp.R", sep = ""))
 source(paste(code_dir, "decomp_summary.R", sep = ""))
+source(paste(code_dir, "contributions.R", sep = ""))
 source(paste(code_dir, "MAPE.R", sep = ""))
-source(paste(code_dir, "responsecurve.R", sep = ""))
-#source(paste(code_dir, "waterfall.R", sep = ""))
-#source(paste(code_dir, "DueToChart.R", sep = ""))
+source(paste(code_dir, "responsecurve_wip.R", sep = ""))
+source(paste(code_dir, "DueToChart.R", sep = ""))
 source(paste(code_dir, "unnestr3.0.R", sep = ""))
 source(paste(code_dir, "abc.R", sep = ""))
 source(paste(code_dir, "fitABC.R", sep = ""))
 source(paste(code_dir, "predict_msmp.R", sep = ""))
+source(paste(code_dir, "compare_models.R", sep = ""))
 
 #######  define project directories ##############
 # please edit these lines to define the path to the project folder.
@@ -53,6 +56,7 @@ if(!file.exists(output_folder)) {
 
 ModObjectFile <- paste(output_folder, "/", ProjectName, ".RData", sep="")
 allresultFile <- paste(output_folder, "/", ProjectName, "_Model_all_results_", gsub(":","_",Sys.time()), ".xlsx", sep="")
+resultPlotsFile <- paste(output_folder, "/", ProjectName, "_plots", ".xlsx", sep="")
 
 
 # read input files
@@ -104,6 +108,7 @@ mod_obj$data <- mod_obj$data[mod_obj$data[[mod_obj$Time]] >= mod_obj$BeginDate &
 print("Run model...")
 mod_obj <- Run_Model(obj = mod_obj)
 mod_obj$Model$act_pred <- act_pred(obj = mod_obj)
+ggplotly(mod_obj$Model$act_pred_chart)
 
 ######################
 # Decomp calculation
@@ -111,9 +116,25 @@ mod_obj$Model$act_pred <- act_pred(obj = mod_obj)
 
 mod_obj <- Decomp(obj = mod_obj, incl_spent = F)
 # calculate decomp contribution against predicted.
-decomp_sum <- decomp_summary(mod_obj$Decomposition, mod_obj$SimStart, mod_obj$SimEnd, "predicted")
+decomp_sum_cy <- decomp_summary(mod_obj$Decomposition, mod_obj$SimStart, mod_obj$SimEnd, "predicted")
+decomp_sum_yago <- decomp_summary(mod_obj$Decomposition, mod_obj$SimStart-52*7, mod_obj$SimEnd-52*7, "predicted")
+dueto = left_join(decomp_sum_cy, decomp_sum_yago)
+
+
+names(decomp_sum_cy) = c("Variables", "Sum_cy", "Percent_cy")
+names(decomp_sum_yago) = c("Variables", "Sum_yago", "Percent_yago")
+
 # calculate decomp contribution against actual dependent variable
 decomp_sum_actual <- decomp_summary(mod_obj$Decomposition, mod_obj$SimStart, mod_obj$SimEnd, mod_obj$spec$Orig_Variable[tolower(mod_obj$spec$Variable_Type) == "dependent"])
+
+# create due to result (table and chart)
+mod_obj$dueto = DueToChart(mod_obj$Decomposition, mod_obj$spec, mod_obj$SimStart, mod_obj$SimEnd, mod_obj$SimStart-52*7, mod_obj$SimEnd-52*7)
+print(mod_obj$dueto$pct)
+print(mod_obj$dueto$chart)
+
+mod_obj$contrib <- contributions(mod_obj, mod_obj$SimStart, mod_obj$SimEnd, by="aggregatevariable")
+wf1 <- (waterfall_chart(Variable = mod_obj$contrib$AggregateVariable, Value = mod_obj$contrib$decomp, percent=F))
+wf2 <- (waterfall_chart(Variable = mod_obj$contrib$AggregateVariable, Value = mod_obj$contrib$Percent, percent=T))
 
 ####################
 # Simulation to get response curve
@@ -127,11 +148,30 @@ mod_obj <- responsecurve(obj = mod_obj, showPlot=T )
 mod_obj <- fitABC(mod_obj, newABC = F,showPlot=T)
 print(mod_obj$abc)
 
-#################
-# save the results to an excel workbook and Rdata object
+########################################################
+# save the results to excel workbook and Rdata object
 ########################################################
 allresultlist <- list(mod_obj$Model$coefficients,mod_obj$Model$act_pred, mod_obj$Model$result_all, mod_obj$Decomposition, decomp_sum, mod_obj$kpi_spent)
 write.xlsx(allresultlist,  allresultFile, asTable = FALSE, sheetName=c("Coefficients","Act vs Pred","Diagnostics","Decomps","% contrib", "mroi and roi ratio"))
+
+plot_wb <- createWorkbook() 
+name <- addWorksheet(plot_wb, "act vs predict") 
+plot(mod_obj$Model$act_pred_chart)
+insertPlot(plot_wb, sheet=name)
+
+name <- addWorksheet(plot_wb, "decomp waterfall")
+plot(wf2)
+insertPlot(plot_wb, sheet=name)
+
+name <- addWorksheet(plot_wb, "due to")
+plot(mod_obj$dueto$chart)
+insertPlot(plot_wb, sheet=name)
+name <- addWorksheet(plot_wb, "TV response curve fit") 
+plot(mod_obj$rc_fit_plots)
+insertPlot(plot_wb, sheet=name) 
+
+saveWorkbook(plot_wb,resultPlotsFile, overwrite = TRUE) 
+
 
 # let's save the model object to a RData file. This object will be loaded later at post-model calculation:
 # unnest, combine response curves and calculate abc.

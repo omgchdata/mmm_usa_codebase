@@ -77,14 +77,21 @@ Check_Hybrid_Spec_File                  <- function(obj,
   
   
   mlev                                  <- max(w$Level)
-  
 
   nxt                                   <- unique(w$Next_Level_Down[w$Next_Level_Down != "End"])
+  mn                                    <- length(nxt)
+ 
+  if (mn == 0) {
+    cat("Warning:  This function is meant to check spec files for multi-level/weighted data \n")
+    cat("          Your spec file only discribes one level and can't support weights. \n")
+    cat("          Double check that you didn't make a mistake setting up the spec file. \n")
+  }
+  
   orig                                  <- unique(w$Orig_Variable)
   miss                                  <- nxt[!(nxt %in% orig)]
-  nm                                    <- length(miss)
-  if (nm > 0) {
-    if (nm == 1) {
+  mn                                    <- length(miss)
+  if (mn > 0) {
+    if (mn == 1) {
       cat("Error:  You need to define the",miss[1],"variable in the spec file \n")
     } else {
       cat("Error:  These variables need to be defined in the spec file: \n")
@@ -103,6 +110,7 @@ Check_Hybrid_Spec_File                  <- function(obj,
   if (nextprint)             mt1        <- mt2 + timelag
   
   ln                                    <- length(levtop)
+ 
   w$check                               <- 0
   w$num                                 <- 1:sn
   
@@ -415,6 +423,7 @@ Check_Hybrid_Spec_File                  <- function(obj,
   temp                                  <- unique(temp)
   
   tn                                    <- length(temp)
+
   nms                                   <- names(w)
   asnlist$Status                        <- 0
   asn                                   <- nrow(asnlist)
@@ -480,6 +489,7 @@ Check_Hybrid_Spec_File                  <- function(obj,
   asneed                                <- asnlist[asnlist$Status==1,"need"]
   asneed                                <- unique(asneed)
   asnn                                  <- length(asneed)
+
   if (asnn > 0) {
     asneed                              <- data.frame(need=asneed)
     asneed$parms                        <- paste("asp",1:asnn,sep="")
@@ -716,43 +726,44 @@ Check_Hybrid_Spec_File                  <- function(obj,
   temp1                                 <- data.frame(aggregate(temp0$ones,by=list(temp0$levvar),FUN=sum))
   names(temp1)                          <- c("levvar","count")
   mcn                                   <- max(temp1$count)
-  
-  temp0                                 <- left_join(temp0,temp1,by="levvar")
-  temp0                                 <- temp0[temp0$count       >  1,]
-  temp0                                 <- temp0[toupper(temp0$as) != "BLANK",]
-  
-  mcn                                   <- max(temp1$err)
-  
   if (mcn > 1) {
     temp0                               <- left_join(temp0,temp1,by="levvar")
     temp0                               <- temp0[temp0$count       >  1,]
-    temp0                               <- temp0[toupper(temp0$dr) != "BLANK",]
-    temp1                               <- data.frame(aggregate(temp0$ones,by=list(temp0$levvar),FUN=sum))
-    names(temp1)                        <- c("levvar","err")
+    temp0                               <- temp0[toupper(temp0$as) != "BLANK",]
+  
     mcn                                 <- max(temp1$err)
+  
     if (mcn > 1) {
       temp0                             <- left_join(temp0,temp1,by="levvar")
-      temp0                             <- temp0[temp0$err         >  1,]
-      temp0                             <- unique(temp0$var)
-      tn                                <- length(temp0)
-      if (tn == 1) {
-        cat("Error:  The diminishing returns for the",temp0[1],"variable seems to be conflicting  \n")
+      temp0                             <- temp0[temp0$count       >  1,]
+      temp0                             <- temp0[toupper(temp0$dr) != "BLANK",]
+      temp1                             <- data.frame(aggregate(temp0$ones,by=list(temp0$levvar),FUN=sum))
+      names(temp1)                      <- c("levvar","err")
+      mcn                               <- max(temp1$err)
+      if (mcn > 1) {
+        temp0                           <- left_join(temp0,temp1,by="levvar")
+        temp0                           <- temp0[temp0$err         >  1,]
+        temp0                           <- unique(temp0$var)
+        tn                              <- length(temp0)
+        if (tn == 1) {
+          cat("Error:  The diminishing returns for the",temp0[1],"variable seems to be conflicting  \n")
+        } else {
+          cat("Error:  The diminishing returns for the below variables seems to be conflicting  \n")
+          print(temp0)
+        }
+        stop("Program terminated due to error")
       } else {
-        cat("Error:  The diminishing returns for the below variables seems to be conflicting  \n")
-        print(temp0)
-      }
-      stop("Program terminated due to error")
-    } else {
-      tn                                <- nrow(temp0)
-      for (i in 1:tn) {
-        dr                              <- temp0$dr[i]
-        lev                             <- temp0$lev[i]
-        val                             <- temp0$var[i]
-        var                             <- vars[lev]
-        dr0                             <- drs[lev]
-        branch[(branch[,var]==val) & 
-               (toupper(branch[,dr0])=="BLANK"),
+        tn                              <- nrow(temp0)
+        for (i in 1:tn) {
+          dr                            <- temp0$dr[i]
+          lev                           <- temp0$lev[i]
+          val                           <- temp0$var[i]
+          var                           <- vars[lev]
+          dr0                           <- drs[lev]
+          branch[(branch[,var]==val) & 
+                 (toupper(branch[,dr0])=="BLANK"),
                dr0]                     <- dr
+        }
       }
     }
   }
@@ -1009,7 +1020,7 @@ Check_Hybrid_Spec_File                  <- function(obj,
   temp                                  <- unique(temp$Orig_Variable)
   notdef                                <- temp[!(temp %in% defined)]
   dn                                    <- length(notdef)
-  
+
   if (dn > 0) {
     if (dn == 1) {
       cat("Error:  You need to define the",notdef[1],"variable in the modeling data file \n")
@@ -1154,7 +1165,7 @@ Check_Hybrid_Spec_File                  <- function(obj,
 }
 
 
-Check_Hybrid_Control_Files                <- function(obj) {
+Check_Hybrid_Control_Files              <- function(obj) {
 
 ### This function has 1 input:
 ###    obj               --- A list with 5 elements
@@ -1199,94 +1210,179 @@ Check_Hybrid_Control_Files                <- function(obj) {
     }
   } else {
     if (toupper(panel) == "N") {
-      panel                            <- "N"
-      cs                               <- NULL
+      panel                             <- "N"
+      cs                                <- NULL
     } else {
-      cflag                            <- nchar(cs)
+      cflag                             <- nchar(cs)
       if (cflag > 0) {
-        nmx                            <- names(x)
+        nmx                             <- names(x)
         if (cs %in% nmx) {
-          panel                        <- "Y"
+          panel                         <- "Y"
         } else {
-          panel                        <- "N"
-          cs                           <- NULL
+          panel                         <- "N"
+          cs                            <- NULL
         }
       } else {
-        panel                          <- "N"
-        cs                             <- NULL
+        panel                           <- "N"
+        cs                              <- NULL
       }
     }
   }
   
-  grps                                  <- names(meta)
-  gn                                    <- length(grps)
-  gn0                                   <- match("Orig_Variable",grps)
-  gn1                                   <- match("Weight",grps)
-  if (is.na(gn0)) {
-    cat("Error:  The Meta file must start with the variable name. \n")
-    stop("Program terminated due to error")
-  } 
-  gn0                                   <- gn0 + 1
-  if (is.na(gn1)) gn1                   <- gn  + 1
-  gn1                                   <- gn1 - 1
-  if (gn1 < gn0) {
-    cat("Error:  The Meta file must start with a variable name, then have several groups of categories to weight. \n")
-    cat("        And then have a Weight column that will be filled out by the code from the Weight file \n")
-    stop("Program terminated due to error")
-  } 
-  grps                                  <- grps[gn0:gn1]
-  gn                                    <- length(grps)
-  for (i in 1:gn) {
-    grp                                 <- grps[i]
-    temp0                               <- unique(wgts[wgts$Group==grp,"Value"])
-    tn                                  <- length(temp0)
-    temp0                               <- data.frame(Group=rep(grp,tn),Value=temp0)
-    if (i == 1) {
-      temp                              <- temp0
-    } else {  
-      temp                              <- rbind(temp,temp0)
+  mlev                                  <- 1
+  elev                                  <- 1
+  mlev                                  <- max(w[w$Include>0 ,"Level"])
+  elev                                  <- max(w[w$Include==1,"Level"])
+  
+  if (mlev == 1) {
+    cat("Warning:  The meta and weight files are not checked because his spec file does \n")
+    cat("          support any weighting. \n")
+  } else {
+    nmm                                 <- names(meta)
+    gn                                  <- length(nmm)
+    gn0                                 <- 0
+    gn1                                 <- 0
+    if ("Orig_Variable" %in% nmm) gn0   <- 1
+    if ("Weight"        %in% nmm) gn1   <- 1
+    gn2                                 <- 0
+    for (i in 1:gn) {
+      var                               <- nmm[i]
+      vn                                <- nchar(var)
+      if (vn > 5) {
+        var0                            <- substr(var,1,5)
+        if (var0 == "Group") {
+          var1                          <- substr(var,6,vn)
+          num                           <- suppressWarnings(as.numeric(var1))
+          if (!is.na(num)) {
+            if (gn2 == 0) {
+              grps0                     <- c(var)
+            } else {
+              grps0                     <- c(grps0,var)
+            }
+            gn2                         <- gn2 + 1
+          }
+        }
+      }
+    }
+    if (gn0 == 0) {
+      cat("Error:  The Meta file must start with the original variable names. \n")
+      stop("Program terminated due to error")
+    } 
+    if (gn2 == 0) {
+      cat("Error:  The Meta file must start with original variable names, then have several groups of categories to weight. \n")
+      cat("        these groups should be in numeric order and look like 'Group1', 'Group2', etc. \n")
+      cat("        And then have a Weight column that will be filled out by the code from the Weight file \n")
+      stop("Program terminated due to error")
+    }
+    if (gn1 == 0) {
+      meta$Weight                       <- 1
+      nmm                               <- names(meta)
+    }
+    grps                                <- grps0
+    gn                                  <- length(grps)
+    nmm0                                <- c("Orig_Variable",grps,"Weight")
+    rest                                <- setdiff(nmm,nmm0)
+    nmm0                                <- c(nmm0,rest)
+    meta                                <- data.frame(meta)
+    meta                                <- meta[,nmm0]
+    meta                                <- as.tibble(meta)
+    vars                                <- Full_Model_Spec[(Full_Model_Spec$Level == mlev) & 
+                                                           (Full_Model_Spec$Include > 0),"Orig_Variable"]
+    vars                                <- unique(vars$Orig_Variable)
+    vars0                               <- Model_Meta$Orig_Variable
+    errs                                <- vars[!(vars %in% vars0)]
+    en                                  <- length(errs)
+    if (en > 0) {
+      if (en == 1) {
+        cat("Error:  The variable",errs[1],"needs to be defined in the Meta file \n")
+      } else {
+        cat("Error:  These variables below need to be defined in the Meta file: \n")
+        print(errs)
+      }
+      stop("Program terminated due to error")
+    }    
+    i0                                  <- 1
+    gn0                                 <- 0
+    for (i in 1:gn) {
+      grp                               <- grps[i]
+      grp0                              <- paste("Group",i0,sep="")
+      if (grp==grp0) {
+        temp0                           <- unique(data.frame(meta[,grp]))
+        names(temp0)                    <- "elements"
+        tn                              <- nrow(temp0)
+        temp0                           <- data.frame(Group=rep(grp,tn),Value=temp0$elements,Match=rep(0,tn))
+        if (i0 == 1) {
+          temp                          <- temp0
+          grps0                         <- c(grp)
+          gn0                           <- 1
+        } else {  
+          temp                          <- rbind(temp,temp0)
+          grps0                         <- c(grps0,grp)
+          gn0                           <- gn0 + 1
+        }
+        i0                              <- i0 + 1
+      }
+    }
+    gn                                  <- gn0
+    grps                                <- grps0
+    tn                                  <- nrow(temp)
+    if (gn == 0) {
+      cat("Error: The mega file must include weighting elements that are divided into groups \n")
+      cat("       where the groups are names 'Group1', 'Group2', and so on \n")
+      stop("Program terminated due to error")
+    }    
+    wgts[is.na(wgts$Lower_Weight),
+         "Lower_Weight"]                <- 1
+    wgts[is.na(wgts$Upper_Weight),
+         "Upper_Weight"]                <- 1
+    wgts[is.na(wgts$Weight),  
+         "Weight"]                      <- 1
+    wn                                  <- nrow(wgts)
+    meta$Weight                         <- 1
+    for (i in 1:wn) {
+      wgt                               <- wgts$Weight[i]
+      grp                               <- wgts$Group[i]
+      val                               <- wgts$Value[i]
+      temp[(temp$Group==grp) &
+           (temp$Value==val),"Match"]   <- 1
+      up                                <- wgts$Upper_Weight[i]
+      low                               <- wgts$Lower_Weight[i]
+      if (up < low) {
+        up                              <- (up + low + wgt) / 3
+        low                             <- up
+        wgt                             <- up
+        wgts$Upper_Weight[i]            <- up
+        wgts$Lower_Weight[i]            <- up
+        wgts$Weight[i]                  <- up
+      }
+      if (wgt > up) {
+        wgt                             <- up
+        wgts$Weight[i]                  <- up      
+      }
+      if (wgt < low) {
+        wgt                             <- low
+        wgts$Weight[i]                  <- low     
+      }
+      meta[meta[,grp] == val,"Weight"]  <- meta[meta[,grp] == val,"Weight"] * wgt
     }
   }
-  wgts                                  <- left_join(temp,wgts,by=c("Group","Value"))
-  wgts[is.na(wgts$Lower_Weight),
-       "Lower_Weight"]                  <- 1
-  wgts[is.na(wgts$Upper_Weight),
-       "Upper_Weight"]                  <- 1
-  wgts[is.na(wgts$Weight),  
-       "Weight"]                        <- 1
-  wn                                    <- nrow(wgts)
-  meta$Weight                           <- 1
-  
-  for (i in 1:wn) {
-    wgt                                 <- wgts$Weight[i]
-    grp                                 <- wgts$Group[i]
-    val                                 <- wgts$Value[i]
-    up                                  <- wgts$Upper_Weight[i]
-    low                                 <- wgts$Lower_Weight[i]
-    if (up < low) {
-      up                                <- (up + low + wgt) / 3
-      low                               <- up
-      wgt                               <- up
-      wgts$Upper_Weight[i]              <- up
-      wgts$Lower_Weight[i]              <- up
-      wgts$Weight[i]                    <- up
+  temp0                                 <- temp[temp$Match==0,]
+  tn                                    <- nrow(temp0)
+  if (tn > 0) {
+    temp0$Match                         <- NULL
+    if (tn == 1) {
+      cat("Error:  The weighting element",temp0$Value[1],"in group",temp0$Group[1],"from the meta file must be defined in the weight file \n")
+    } else {
+      cat("Error:  These weighting elements in the meta file must be defined in the weight file: \n")
+      print(temp0)
     }
-    if (wgt > up) {
-      wgt                               <- up
-      wgts$Weight[i]                    <- up      
-    }
-    if (wgt < low) {
-      wgt                               <- low
-      wgts$Weight[i]                    <- low     
-    }
-    meta[meta[,grp] == val,"Weight"]    <- meta[meta[,grp] == val,"Weight"] * wgt
+    stop("Program terminated due to error")
   }
   obj$meta                              <- meta
   obj$weights                           <- wgts
   obj$Panel                             <- panel
   obj$CS                                <- cs
   return(obj)
- 
 }
 
 Distribute_Weights                      <- function(obj,
@@ -1352,7 +1448,7 @@ Distribute_Weights                      <- function(obj,
   if (megaprint)                           cat("Distribute Weights Step  1 \n")
   if (print)                               cat("Distribute and normalize weights on every level of transformed variables \n")
   mt1                                   <- Sys.time() + timelag
-  x                                     <- obj$data
+  x                                     <- data.frame(obj$data)
   spec                                  <- obj$spec
   full_spec                             <- obj$full_spec
   meta                                  <- obj$meta
@@ -1428,7 +1524,7 @@ Distribute_Weights                      <- function(obj,
   }
   #Make sure the trans variable are all removed so they can be recreated
   temp                                  <- data.frame(use_spec[(use_spec$Variable_Type != "Dependent") &
-                                                                 (use_spec$Orig_Variable != "Intercept"),
+                                                               (use_spec$Orig_Variable != "Intercept"),
                                                                "Trans_Variable"])
   names(temp)                           <- "Trans_Variable"
   temp                                  <- unique(temp$Trans_Variable)
@@ -1474,7 +1570,7 @@ Distribute_Weights                      <- function(obj,
   ### This next sub-step distributes down the raw weights to the levels below
   ###    up to the modeling level.  This is mostly just adding higher levels up
   ###    to make lower levels, but also document what weights were added.
-  
+ 
   if (elev < mlev) {
     elev0                               <- mlev - elev
     for (i in 1:elev0) {
@@ -1484,6 +1580,7 @@ Distribute_Weights                      <- function(obj,
                                                     (use_spec$Variable_Type != "Dependent") &
                                                     (use_spec$Orig_Variable != "Intercept"),]
       tn                                <- nrow(temp)
+      
       for (j in 1:tn) {
         var                             <- temp$Orig_Variable[j]
         vart                            <- temp$Trans_Variable[j]
@@ -1910,7 +2007,7 @@ Hybrid_Variable_Tranformations          <- function(obj,
                                                     megaprint       = FALSE,
                                                     timelag         = 10) {
 ### This function has 4 inputs:
-###    obj                  --- A list with 6 elements
+###    obj                  --- A list with 9 elements
 ###                                data      = is the model input data
 ###                                full_spec = The spec file
 ###                                meta      = the meta file (including elements
@@ -1923,6 +2020,11 @@ Hybrid_Variable_Tranformations          <- function(obj,
 ###                                            for the panels (region, DMAs, etc.)
 ###                                fit_curve = Curve parameters used in some
 ###                                            transforms.
+###                                time      = The time variable in the data file
+###                                BeginDate = The first date in the range of time
+###                                            we want to transform
+###                                EndDate   = The last date in the range of time
+###                                            we want to transform
 ###    MultiLevelDR = FALSE --- Means that the diminishing returns are only on one
 ###                             variable per branch level and every variable
 ###                             above and below that variable agrees as close as
@@ -1965,6 +2067,9 @@ Hybrid_Variable_Tranformations          <- function(obj,
   fit_curves                            <- obj$fit_curves
   panel                                 <- obj$Panel
   cs                                    <- obj$CS
+  time                                  <- obj$Time
+  bdate                                 <- obj$BeginDate
+  edate                                 <- obj$EndDate
   
   output                                <- list()
   csflag                                <- 0
@@ -2328,6 +2433,12 @@ Hybrid_Variable_Tranformations          <- function(obj,
     }
   }
   
+  ### Finally remove time periods outside the range before we start on diminishing
+  ###    returns.
+  
+  x                                        <- x[x[[time]] >= bdate & x[[time]] <= edate,]
+
+  
   mt1                                   <- Sys.time() + timelag
   if (megaprint)                           cat("Transforms Step  7 \n")
   if (print)                               cat("Transform the Dimishing Returns \n")
@@ -2411,7 +2522,7 @@ Hybrid_Variable_Tranformations          <- function(obj,
         mnad1                           <- mnad  - (mnas * mndr)
         tst                             <- 0
         if ((mnad1 != 0) &
-            (mnad1 != 0))   adja        <- mnad1 / mndr1
+            (mndr1 != 0))   adja        <- mnad1 / mndr1
         if (adja <= 0) {
           adja                          <- 1
           if ((sdas > 0) & 
@@ -3534,7 +3645,7 @@ Measures_of_Extreme_Transformations     <- function(obj,
             (length(unique(temp3$grp)) != grpn)  |
             (max(temp3$grp)            <  grpn)  |
             (w0                        >     0)) 
-          cat("Check",tn,grpn,w0,min(temp3$grp),length(unique(temp3$grp)),max(temp3$grp),"\n")
+          #cat("Check",tn,grpn,w0,min(temp3$grp),length(unique(temp3$grp)),max(temp3$grp),"\n")
         qrps                            <- data.frame(grp   = 1:grpn     ,
                                                       x     = rep(0,grpn),
                                                       y     = rep(0,grpn),
@@ -3756,7 +3867,7 @@ Update_Control_Files                    <- function(obj) {
     }
     if (size == 0)                use   <- 0
     temp                                <- meta[(meta[,grp]     == val)   &
-                                                  (meta$Model_Var != "None"),"Model_Var"]
+                                                (meta$Model_Var != "None"),"Model_Var"]
     temp                                <- unique(temp$Model_Var)
     tn0                                 <- length(temp)
     maxi                                <- 0
@@ -4204,7 +4315,7 @@ Random_Weights_CMAES_Opt                <- function(wobj,
   r2                                    <- 0
   r3                                    <- 0
   mvn                                   <- nrow(modvars)
-  for (i in 1:rs) {
+  for (i in 1:rs) { 
     ### Start by adjusting the upper and lower limits based on the step you are on
     ###    and then pick a random weight based on that range (centering it on the
     ###    current best weight).
@@ -4215,7 +4326,7 @@ Random_Weights_CMAES_Opt                <- function(wobj,
       w3                                <-  1.27
       w4                                <- (w0 ^ sa) * w1
       w5                                <- (w2 ^ i ) * w3
-      buff                              <- 1 + (0.006 * w4 * w5)
+      buff                              <- 2 + (0.006 * w4 * w5)
       low                               <- wgts$Lower_Weight
       upp                               <- wgts$Upper_Weight
       cur                               <- wgts$Weight
@@ -4281,7 +4392,6 @@ Random_Weights_CMAES_Opt                <- function(wobj,
           meta$W_DR_Adj_Plus            <- meta$DR_Adj_Plus * meta$Try
           
           meta$centry                   <- meta$Try
-          
           for (k in 1:mvn) {
             var                         <- modvars$var[k]
             varas                       <- modvars$varas[k]
@@ -4436,10 +4546,10 @@ Random_Weights_CMAES_Opt                <- function(wobj,
               if (mn0 != 0)       adje  <- mn1 / mn0
               temp$adjd2                <- 0
               if (adjb * adjc0 > 0) {
-                temp$adjd2              <- temp$W_DR_Adj_Plus * adjb / adjc0
+                temp$adjd2                <- temp$W_DR_Adj_Plus * adjb / adjc0
               } else {
                 if (cont != 0) {
-                  temp$adjd2            <- temp$Mean_Temp_DR * adjb / cont
+                  temp$adjd2              <- temp$Mean_Temp_DR * adjb / cont
                 }
               }
               temp$mnt                  <- abs((temp$Mean_Temp_DR * adje) + temp$adjd2)
@@ -4604,7 +4714,7 @@ Random_Weights_CMAES_Opt                <- function(wobj,
       e0                                <- floor(r1 / 20) * 20
       ea                                <- e0 + 5
     }
-    ca                                  <- ca + 50
+    ca                                  <- ca + 20
   }
   wobj$meta                             <- meta
   wobj$wgts                             <- wgts
@@ -4715,6 +4825,8 @@ Incremental_Improvement_Opt             <- function(wobj,
   sa                                    <- floor(sa + 0.5)
   wn                                    <- nrow(wgts)
   mn                                    <- nrow(meta)
+  mvn                                   <- nrow(modvars)
+  gn                                    <- nrow(grps)
   c0                                    <- 0
   ea                                    <- 0
   go                                    <- 1
@@ -4722,14 +4834,12 @@ Incremental_Improvement_Opt             <- function(wobj,
   lim                                   <- 0.01 / (sa * sa * sa)
   inclim                                <- log2(inc / lim)
   incdiv                                <- 2 ^ (1 + (1/18) - (sa / 18))
-  guardrail                             <- penalty * 0.015
-  mvn                                   <- nrow(modvars)
-  gn                                    <- length(grps)
-  
-  
+  guardrail                             <- penalty * 0.00375 * gn
+  pen                                   <- penalty * basemsr * gn / 23.1
   wgts$Count                            <- 0
   c1                                    <- 0
   ta                                    <- 0
+  
   while (go == 1) {
     ### Start by adjusting the upper and lower limits based on the step you are on
     ###    and then pick a random weight based on that range (centering it on the
@@ -4740,9 +4850,10 @@ Incremental_Improvement_Opt             <- function(wobj,
     i0                                  <- 1
     bests                               <- c(basemsr)
     dis                                 <- sum(abs(wgts$Weight - 1) * wgts$Eff_Wgt)
+    dis0                                <- sum(wgts$Eff_Wgt)
     inc0                                <- inc
     if (inc0  < 0.01)           inc0    <- 0.01
-    dispi                               <- dis      * penalty
+    dispi                               <- dis      * pen
     basemsr0                            <- basemsr  + dispi
     bestmsr0                            <- basemsr0
     best0s                              <- c(bestmsr0)
@@ -4766,15 +4877,15 @@ Incremental_Improvement_Opt             <- function(wobj,
       size                              <- wgts$size[i]
       eff                               <- wgts$Effect[i]
       buf                               <- 1 + (0.00014 * (5 + sa) * (size ^ 0.03))
-      pi                                <- eff * sqrt(inc0) * guardrail
+      pi                                <- eff * sqrt(inc0) * guardrail * gn * 2 / basemsr
       dis                               <- sum(abs(wgts$Weight - 1) * wgts$Eff_Wgt)
-      dispi                             <- dis * penalty
+      dispi                             <- dis * pen
       basemsr0                          <- basemsr + dispi
       bestmsr                           <- basemsr
       bestmsr0                          <- basemsr0
       basepi                            <- basemsr0 - pi
       bestj                             <- 0
-      for (j in 1:4) {
+      for (j in 1:5) {
         meta$Try                        <- meta$Weight
         wgts$Try                        <- wgts$Weight
         no                              <- 0
@@ -4811,6 +4922,10 @@ Incremental_Improvement_Opt             <- function(wobj,
             j9                          <- 5
           }
         }
+        if (j == 5) {
+          new                           <- cur
+          j9                            <- 6
+        }
         if (no == 0) {
           c0                            <- c0 + 1
           ta                            <- ta + 1
@@ -4827,7 +4942,7 @@ Incremental_Improvement_Opt             <- function(wobj,
           if (cen > upp0)        cen    <- upp0
           wgts[wgts$Group == grp,"Try"] <- wgts[wgts$Group == grp,"Try"] * cen
           dis                           <- sum(abs(wgts$Try - 1) * wgts$Eff_Wgt)
-          dispi                         <- dis * penalty
+          dispi                         <- dis * pen
           # Apply the weights to the meta file
           for (k in 1:wn) {
             if (wgts$Group[k] == grp) {
@@ -4876,7 +4991,6 @@ Incremental_Improvement_Opt             <- function(wobj,
             meta$W_DR_Adj_Plus          <- meta$DR_Adj_Plus * meta$Try
             
             meta$centry                 <- meta$Try
-            
             for (k in 1:mvn) {
               var                       <- modvars$var[k]
               varas                     <- modvars$varas[k]
@@ -4922,10 +5036,10 @@ Incremental_Improvement_Opt             <- function(wobj,
               if (mn0 != 0)       adje  <- mn1 / mn0
               temp$adjd2                <- 0
               if (adjb * adjc0 > 0) {
-                temp$adjd2              <- temp$W_DR_Adj_Plus * adjb / adjc0
+                temp$adjd2                <- temp$W_DR_Adj_Plus * adjb / adjc0
               } else {
                 if (cont != 0) {
-                  temp$adjd2            <- temp$Mean_Temp_DR  * adjb / cont
+                  temp$adjd2              <- temp$Mean_Temp_DR * adjb / cont
                 }
               }
               temp$mnt                  <- abs((temp$Mean_Temp_DR * adje) + temp$adjd2)
@@ -4953,6 +5067,7 @@ Incremental_Improvement_Opt             <- function(wobj,
             tryres                      <- d[,dep] - d$try
             trymsr                      <- mean(tryres * tryres)
             trymsr0                     <- trymsr + dispi
+            
             if (trymsr0 <= basepi) {
               cnt                       <- wgts$Count[i]
               if ((trymsr0 <  bestmsr0)   &
@@ -5047,7 +5162,7 @@ Incremental_Improvement_Opt             <- function(wobj,
         }  
         wgts[,var]                      <- wgts$Try
         dis                             <- sum(abs(wgts$Try - 1) * wgts$Eff_Wgt)
-        dispi                           <- dis * penalty  
+        dispi                           <- dis * pen  
         meta$Try                        <- meta$Weight
         c0                              <- c0 + 1
         ta                              <- ta + 1
@@ -5266,7 +5381,7 @@ Incremental_Improvement_Opt             <- function(wobj,
         wgts$Try                        <- wgts[,var]
         
         dis                             <- sum(abs(wgts$Try - 1) * wgts$Eff_Wgt)
-        dispi                           <- dis * penalty
+        dispi                           <- dis * pen
         basemsr                         <- bestmsr
         basemsr0                        <- bestmsr0
         meta$Try                        <- meta$Weight
@@ -5331,10 +5446,10 @@ Incremental_Improvement_Opt             <- function(wobj,
           if (mn0 != 0)           adje  <- mn1 / mn0
           temp$adjd2                    <- 0
           if (adjb * adjc0 > 0) {
-            temp$adjd2                  <- temp$W_DR_Adj_Plus * adjb / adjc0
+            temp$adjd2                <- temp$W_DR_Adj_Plus * adjb / adjc0
           } else {
             if (cont != 0) {
-              temp$adjd2                <- temp$Mean_Temp_DR * adjb / cont
+              temp$adjd2              <- temp$Mean_Temp_DR * adjb / cont
             }
           }
           temp$mnt                      <- abs((temp$Mean_Temp_DR * adje) + temp$adjd2)
@@ -6011,7 +6126,6 @@ Weights_Optimization                    <- function(obj,
         adja                            <- 1
         if (mndr != 0)          adja    <- mean(x[,vardr] - adjz) / mndr
       }
-      print
       modvars$vart[i]                   <- vart
       modvars$varas[i]                  <- varas
       modvars$vardr[i]                  <- vardr
@@ -6035,7 +6149,7 @@ Weights_Optimization                    <- function(obj,
   if (nextprint)             mt1        <- mt2 + timelag  
   ### To start the real work,  we create a baseline of what the mean squared
   ###    residuals currently are (Before we improve them by optimization).
-  
+
   if (opt == 1) {
     mn                                  <- nrow(meta)
     d$base                              <- 0
@@ -6135,7 +6249,6 @@ Weights_Optimization                    <- function(obj,
   ###    weighting changes.  This way it can avoid over-fitting the weighting.
   ###    We also Avoid over-fitting and create consistency by a applying a lasso
   ###    like penalty to the weighting centered at a weight of one.
-  
   if (opt == 1) {
     
     wgts$Effect                         <- 0
@@ -6278,7 +6391,6 @@ Weights_Optimization                    <- function(obj,
     mrz                                 <- mrz - ms9
     
   }
-  
   mt2                                   <- Sys.time()
   nextprint                             <- FALSE
   if (megaprint)             nextprint  <- TRUE
@@ -6341,6 +6453,7 @@ Weights_Optimization                    <- function(obj,
     d                                   <- wobj$decomps
     basemsr                             <- wobj$basemsr
     numtrys                             <- wobj$numtrys
+
     ms4                                 <- Sys.time()
     ms9                                 <- as.numeric(difftime(ms4,ms3,units="mins"))
     if (print) cat("Fine Tune Opt   -   Time in Minutes =",ms9,"   -   And",numtrys,"weights tested. \n")

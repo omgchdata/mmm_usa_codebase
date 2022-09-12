@@ -15,6 +15,8 @@
 #                          In this case, the Run_model_Panel will skip the 1st step of "learning" priors, and 
 #                          just ran the final model using the priors. 
 # 2022-08-15 Julia Liu : fixed a bug when right signed empirical priors can not be derived from the data/model
+# 2022-09-07 Julia Liu : at the step where VIF is calculated : added a check to make sure lmmodel object has no "na" 
+#                        in the result. Otherwise the vif function fails. 
 #######################################
 
 Run_Model_Panel <- function(obj, priors = NULL, Method="Bayes") {
@@ -249,8 +251,21 @@ Run_Model_Panel <- function(obj, priors = NULL, Method="Bayes") {
   
   # create a result_all data frame that contains model specifications, estimates, VIF, and etc.
   obj$Model$DW <- durbinWatsonTest(obj$lmModel)
-  obj$Model$VIF <- data.frame(vif(obj$lmModel))
-  obj$Model$VIF$variable <- row.names(obj$Model$VIF)
+  
+  if(TRUE %in% unique(is.na(coef(obj$lmModel)))) {
+    obj$Model$VIF <- data.frame(obj$Model$coefficients[, c("Variables")])
+    names(obj$Model$VIF) <- "Variables"
+    obj$Model$VIF$VIF <- NA
+    obj$Model$VIF$Variables <- as.character(obj$Model$VIF$Variables)
+  } else if( length(IV) <= 2 ) {
+    obj$Model$VIF <- data.frame(obj$Model$coefficients[, c("Variables")])
+    names(obj$Model$VIF) <- "Variables"
+    obj$Model$VIF$VIF <- NA
+    obj$Model$VIF$Variables <- as.character(obj$Model$VIF$Variables)
+  } else {
+    obj$Model$VIF <- data.frame(vif(obj$lmModel))
+    obj$Model$VIF$variable <- row.names(obj$Model$VIF)
+  }
   obj$Model$Priors <- priors
   names(obj$Model$VIF) <- c("VIF", "Variables")
   obj$Model$VIF <- left_join(obj$Model$coefficients,obj$Model$VIF, by="Variables")

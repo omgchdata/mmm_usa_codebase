@@ -12,6 +12,9 @@ library(reshape)
 # For first two parameters, use mod_obj$Decomposition and mod_obj$spec
 DueToChart <- function(df, spec, startdate_current, enddate_current, startdate_previous, enddate_previous, current_name = "Current_Period", previous_name = "Past_Period") {
   names(df)[1] <- "Week"
+  if("predicted" %in% names(df)) {
+    df$predicted <- NULL
+  }
   depvar <- spec$Orig_Variable[tolower(spec$Variable_Type) == "dependent"]
   spec$AggregateVariable[tolower(spec$Variable_Type) == "dependent"] <- "KPI"
   dueto_obj <- list()
