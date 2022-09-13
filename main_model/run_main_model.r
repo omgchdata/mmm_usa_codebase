@@ -116,14 +116,16 @@ ggplotly(mod_obj$Model$act_pred_chart)
 ######################
 
 mod_obj <- Decomp(obj = mod_obj, incl_spent = F)
-# calculate decomp contribution against predicted.
+
+# now just to show what you can do with the decomposition output,
+# here are several different ways to summarize the decomp table 
+# calculate decomp contribution for 2 time period against predicted.
 decomp_sum_cy <- decomp_summary(mod_obj$Decomposition, mod_obj$SimStart, mod_obj$SimEnd, "predicted")
 decomp_sum_yago <- decomp_summary(mod_obj$Decomposition, mod_obj$SimStart-52*7, mod_obj$SimEnd-52*7, "predicted")
-dueto = left_join(decomp_sum_cy, decomp_sum_yago)
-
 
 names(decomp_sum_cy) = c("Variables", "Sum_cy", "Percent_cy")
 names(decomp_sum_yago) = c("Variables", "Sum_yago", "Percent_yago")
+decomp_cy_yago = left_join(decomp_sum_cy, decomp_sum_yago)
 
 # calculate decomp contribution against actual dependent variable
 decomp_sum_actual <- decomp_summary(mod_obj$Decomposition, mod_obj$SimStart, mod_obj$SimEnd, mod_obj$spec$Orig_Variable[tolower(mod_obj$spec$Variable_Type) == "dependent"])
@@ -141,7 +143,6 @@ wf2 <- (waterfall_chart(Variable = mod_obj$contrib$AggregateVariable, Value = mo
 # Simulation to get response curve
 ####################
 mod_obj <- responsecurve(obj = mod_obj, showPlot=T )
-#write_csv(mod_obj$ResponseCurve, RCFile)
 
 ##################
 # fit abc curves on the response curves (that have spend information) to get a, b, and c
