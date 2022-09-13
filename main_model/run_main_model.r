@@ -32,6 +32,7 @@ source(paste(code_dir, "abc.R", sep = ""))
 source(paste(code_dir, "fitABC.R", sep = ""))
 source(paste(code_dir, "predict_msmp.R", sep = ""))
 source(paste(code_dir, "compare_models.R", sep = ""))
+source(paste(code_dir, "plot_msmp.R", sep = ""))
 
 #######  define project directories ##############
 # please edit these lines to define the path to the project folder.

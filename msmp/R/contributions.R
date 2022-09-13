@@ -1,9 +1,9 @@
 
 contributions <- function(obj, start_date, end_date, by="variable") {
-  dep_var <- obj$spec[obj$spec$Variable_Type == "Dependent",]$Trans_Variable
+  depvar <- obj$spec[obj$spec$Variable_Type == "Dependent",]$Trans_Variable
   decomp_df <- obj$Decomposition
   
-  total <- sum(decomp_df[decomp_df[[obj$Time]] >= start_date & decomp_df[[obj$Time]] <= end_date,][dep_var])
+  total <- sum(decomp_df[decomp_df[[obj$Time]] >= start_date & decomp_df[[obj$Time]] <= end_date,][depvar])
   
   #names(decomp_df)[1] <- "Week"
   decomp_df[[obj$Time]] <- NULL
@@ -20,7 +20,7 @@ contributions <- function(obj, start_date, end_date, by="variable") {
     contrib <- left_join(contrib, obj$spec[, c("Trans_Variable", "AggregateVariable")])
     contrib$AggregateVariable[contrib$Trans_Variable == "predicted"] = "predicted"
     
-    contrib$AggregateVariable[contrib$Variable == dep_var] = dep_var
+    contrib$AggregateVariable[contrib$Variable == depvar] = depvar
     contrib <- contrib %>% group_by(AggregateVariable) %>%
       summarise(decomp = sum(decomp),
                 Percent = sum(Percent))
