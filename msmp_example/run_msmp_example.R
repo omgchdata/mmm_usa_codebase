@@ -10,7 +10,8 @@ library(ggplot2)
 
 #Define the server : pc or mac
 if (Sys.info()['sysname'] == "Darwin") {server <- "/Volumes"} else {server <- "//nyccentral"}
-code_dir <- "C:/Users/julia.liu/OneDrive - OneWorkplace/Documents/MyWork/an_ms_modelplatform/msmp/R/"
+#code_dir <- "C:/Users/julia.liu/OneDrive - OneWorkplace/Documents/MyWork/an_ms_modelplatform/msmp/R/"
+code_dir <- "/Users/plotti/code/omg_mmm/msmp/R/"
 
 source(paste(code_dir, "msmp_setup.R", sep = ""))
 source(paste(code_dir, "Check_Data.R", sep = ""))
@@ -31,7 +32,8 @@ source(paste(code_dir, "fitABC.R", sep = ""))
 # please edit these lines to define the path to the project folder.
 ProjectName <-  "msmp_example"            # the name of the sub-folder that contains the model project
 OutDir <- "output"
-RootDirectory <- "C:/Users/julia.liu/OneDrive - OneWorkplace/Documents/MyWork/an_ms_modelplatform/"
+#RootDirectory <- "C:/Users/julia.liu/OneDrive - OneWorkplace/Documents/MyWork/an_ms_modelplatform/"
+RootDirectory <- "/Users/plotti/code/omg_mmm/"
 ProjectDirectory <- paste(RootDirectory, ProjectName, "/", sep="")   # this is the full path of the project
 
 ###################

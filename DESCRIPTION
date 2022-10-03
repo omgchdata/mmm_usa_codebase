@@ -3,5 +3,11 @@ Imports:
     car,
     ggplot2,
     lmtest,
+    onls,
     openxlsx,
+    RcppRoll,
+    reshape,
+    reshape2,
     tidyverse
+Remotes:
+    cran/onls
